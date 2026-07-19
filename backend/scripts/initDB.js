@@ -29,8 +29,9 @@ async function initDB() {
       CREATE TABLE IF NOT EXISTS document_chunks (
         id SERIAL PRIMARY KEY,
         document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+        chunk_index INTEGER NOT NULL DEFAULT 0,
         chunk_text TEXT NOT NULL,
-        embedding VECTOR(1536)
+        embedding VECTOR(768)
       );
     `);
     

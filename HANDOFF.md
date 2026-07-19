@@ -38,10 +38,15 @@ DocVerse AI/                       ← Workspace root
 │   │   └── db.js                  ← pg Pool, loads .env using absolute path
 │   ├── scripts/
 │   │   └── initDB.js              ← One-time schema setup script (run manually)
-│   ├── routes/                    ← (EMPTY — ready for route files)
-│   ├── controllers/               ← (EMPTY — ready for controller files)
-│   ├── services/                  ← (EMPTY — ready for RAG service files)
-│   └── uploads/                   ← Staging dir for multer PDF uploads
+│   ├── middleware/
+│   │   └── upload.js              ← Multer config: PDF-only, 50MB limit, auto-creates /uploads
+│   ├── routes/
+│   │   └── documentRoutes.js      ← POST /api/documents/upload
+│   ├── controllers/
+│   │   └── documentController.js  ← Upload lifecycle: insert → extract → update status
+│   ├── services/
+│   │   └── documentService.js     ← pdf-parse wrapper + scanned doc detection
+│   └── uploads/                   ← Temp dir for multer (files deleted after processing)
 │
 └── frontend/                      ← React + Vite SPA
     ├── index.html
@@ -150,6 +155,7 @@ curl http://localhost:5000/api/health
 
 - [x] **Step 1** — Monorepo boilerplate (frontend + backend directories, root scripts, Vite/Tailwind setup, base Express server, health-check UI)
 - [x] **Step 2** — Database setup (PostgreSQL pool config, `documents` + `document_chunks` tables, HNSW index on `VECTOR(1536)` column, schema verified and live)
+- [x] **Step 3** — Document Upload API (multer middleware, pdf-parse service with scanned-doc detection, controller with full error/status lifecycle, route mounted at `/api/documents/upload`)
 
 ---
 
@@ -157,7 +163,7 @@ curl http://localhost:5000/api/health
 
 The following features need to be built **in order**. Each step is independent but depends on the previous layer.
 
-### Step 3 — Document Upload & PDF Processing API
+### Step 4 — Text Chunking & Embedding Pipeline (NEXT)
 **Goal**: Accept PDF uploads via a REST endpoint, extract raw text, store metadata in the DB.
 
 Files to create:
