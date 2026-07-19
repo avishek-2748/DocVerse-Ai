@@ -162,6 +162,7 @@ curl http://localhost:5000/api/health
 - [x] **Step 3** — Document Upload API (multer middleware, pdf-parse service with scanned-doc detection, controller with full error/status lifecycle, route at `/api/documents/upload`)
 - [x] **Step 4** — Text Chunking & Embedding Pipeline (`RecursiveCharacterTextSplitter` 1000/200, `CustomGoogleGenerativeAIEmbeddings` subclass with `outputDimensionality=768`, model `gemini-embedding-001`, stored in `document_chunks`)
 - [x] **Step 5** — RAG Chat API (`chatService.js` embeds query → pgvector cosine search top-5 → strict grounded prompt → `gemini-3.1-flash-lite` answer; route at `POST /api/chat/ask`)
+- [x] **Step 6** — Frontend UI & Chat Component (split-screen drag-and-drop dashboard, reactive active doc info panel, chat message history scroll, interactive suggested questions, and connection failure fallback)
 
 ---
 
@@ -185,22 +186,6 @@ Returns:
   "metadata": { "documentId": 7, "chunksRetrieved": 4, "topSimilarity": 0.5051 }
 }
 ```
-
-### Step 6 — Frontend Feature Build-out
-**Goal**: Replace the placeholder health-check UI with the real application interface.
-
-Views to create inside `frontend/src/views/`:
-- `UploadView.jsx` — Drag-and-drop PDF upload form, progress indicator
-- `ChatView.jsx` — Chat window with streaming text display, document selector
-- `DocumentsView.jsx` — List of uploaded documents with status badges
-
-Components to create inside `frontend/src/components/`:
-- `DocumentCard.jsx`
-- `ChatMessage.jsx`
-- `UploadDropzone.jsx`
-- `StreamingResponse.jsx`
-
-Add client-side routing with `react-router-dom`.
 
 ### Step 7 — Document Intelligence Features
 **Goal**: Auto-generate summaries, quizzes, and comparative reports from documents.
@@ -246,4 +231,4 @@ Add client-side routing with `react-router-dom`.
 
 ---
 
-*Last updated: 2026-07-19 — Steps 1–5 complete. Steps 6–8 pending.*
+*Last updated: 2026-07-20 — Steps 1–6 complete. Steps 7–8 pending.*
