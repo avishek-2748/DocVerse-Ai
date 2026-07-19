@@ -42,13 +42,16 @@ DocVerse AI/                       ← Workspace root
 │   │   └── upload.js              ← Multer config: PDF-only, 50MB limit, auto-creates /uploads
 │   ├── routes/
 │   │   ├── documentRoutes.js      ← POST /api/documents/upload
-│   │   └── chatRoutes.js          ← POST /api/chat/ask
+│   │   ├── chatRoutes.js          ← POST /api/chat/ask
+│   │   └── intelligenceRoutes.js  ← GET /api/intelligence/summary/:id, /quiz/:id
 │   ├── controllers/
 │   │   ├── documentController.js  ← Upload lifecycle: insert → extract → embed → complete
-│   │   └── chatController.js      ← Validates body, delegates to chatService, returns JSON
+│   │   ├── chatController.js      ← Validates body, delegates to chatService, returns JSON
+│   │   └── intelligenceController.js ← getSummary & getQuiz with input validation
 │   ├── services/
 │   │   ├── documentService.js     ← pdf-parse + CustomGoogleGenerativeAIEmbeddings pipeline
-│   │   └── chatService.js         ← RAG: embed query → pgvector search → Gemini LLM answer
+│   │   ├── chatService.js         ← RAG: embed query → pgvector search → Gemini LLM answer
+│   │   └── intelligenceService.js ← Map-Reduce summary + structured JSON quiz generation
 │   └── uploads/                   ← Temp dir for multer (files deleted after processing)
 │
 └── frontend/                      ← React + Vite SPA
@@ -163,6 +166,7 @@ curl http://localhost:5000/api/health
 - [x] **Step 4** — Text Chunking & Embedding Pipeline (`RecursiveCharacterTextSplitter` 1000/200, `CustomGoogleGenerativeAIEmbeddings` subclass with `outputDimensionality=768`, model `gemini-embedding-001`, stored in `document_chunks`)
 - [x] **Step 5** — RAG Chat API (`chatService.js` embeds query → pgvector cosine search top-5 → strict grounded prompt → `gemini-3.1-flash-lite` answer; route at `POST /api/chat/ask`)
 - [x] **Step 6** — Frontend UI & Chat Component (split-screen drag-and-drop dashboard, reactive active doc info panel, chat message history scroll, interactive suggested questions, and connection failure fallback)
+- [x] **Step 7** — Document Intelligence Features (Map-Reduce summarization + structured JSON quiz generation via `intelligenceService.js`; routes at `GET /api/intelligence/summary/:id` and `GET /api/intelligence/quiz/:id?count=N`)
 
 ---
 
@@ -187,11 +191,17 @@ Returns:
 }
 ```
 
-### Step 7 — Document Intelligence Features
-**Goal**: Auto-generate summaries, quizzes, and comparative reports from documents.
+### ✅ Step 7 — Document Intelligence — **COMPLETE**
 
-- `backend/routes/intelligence.js` — POST `/api/intelligence/summarize`, `/quiz`, `/compare`
-- `backend/services/intelligenceService.js` — Separate LangChain chain per feature
+Summary endpoint:
+```bash
+curl -s http://localhost:5000/api/intelligence/summary/7 | python3 -m json.tool
+```
+
+Quiz endpoint (optional `?count=N`, default 5, max 20):
+```bash
+curl -s "http://localhost:5000/api/intelligence/quiz/7?count=3" | python3 -m json.tool
+```
 
 ### Step 8 — Dockerization & Production Config
 **Goal**: Add `Dockerfile` for the backend, `docker-compose.yml` for orchestrating the full stack (backend + frontend + db), configure for AWS deployment.
@@ -208,6 +218,9 @@ Returns:
 | Vector dimensions | `VECTOR(768)` with `outputDimensionality: 768` (MRL) | HNSW hard limit is 2000 dims; 768 is efficient & accurate |
 | Vector index type | HNSW (`vector_cosine_ops`) | Best recall/speed for semantic search |
 | Chat LLM | `gemini-3.1-flash-lite` | Only `generateContent` model confirmed working on this project's free tier |
+| Intelligence LLM | `gemini-3.1-flash-lite` (same) | Reuses the same model; swap `CHAT_MODEL` const in `intelligenceService.js` to upgrade |
+| Summary strategy | Map-Reduce via `PromptTemplate` | Handles arbitrarily long documents without exceeding context window |
+| Quiz output | Strict JSON prompt + markdown fence stripping + structural validation | Reliable JSON parsing even when model wraps output in \`\`\`json fences |
 | RAG top-k | 5 chunks | Balances context richness vs token budget |
 | RAG prompt style | Strict system prompt with grounding rules | Prevents hallucination; answers from document only |
 | DB pool events | `pool.on('connect')` / `pool.on('error')` | Centralized DB event logging |
@@ -229,6 +242,8 @@ Returns:
 6. **HNSW dimension limit**: pgvector HNSW index supports a maximum of **2000 dimensions**. Gemini Embedding 2 / Embedding 001 default to 3072 dims — always pass `outputDimensionality: 768`.
 7. **pdf-parse ESM**: `pdf-parse` is a CommonJS package. Use `createRequire(import.meta.url)` for ESM interop.
 
+8. **Swapping the LLM model**: All three services (`chatService.js`, `intelligenceService.js`) reference `gemini-3.1-flash-lite`. To swap to a different model (e.g. `gemini-2.5-flash` after enabling billing), change the `CHAT_MODEL` constant in `intelligenceService.js` and the `model:` field in `chatService.js`.
+
 ---
 
-*Last updated: 2026-07-20 — Steps 1–6 complete. Steps 7–8 pending.*
+*Last updated: 2026-07-20 — Steps 1–7 complete. Step 8 pending.*
