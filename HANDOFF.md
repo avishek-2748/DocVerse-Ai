@@ -14,7 +14,7 @@
 | Frontend | React 19 + Vite 8 + Tailwind CSS 3 |
 | Backend | Node.js (ES Modules) + Express 4 |
 | Database | PostgreSQL 16 + pgvector (Docker) |
-| AI / RAG | LangChain.js + OpenAI API (`@langchain/openai`) |
+| AI / RAG | LangChain.js + Gemini API (`@langchain/google-genai`) |
 | File Handling | Multer (upload) + pdf-parse (text extraction) |
 | Infrastructure | Docker (DB), future: AWS |
 
@@ -76,7 +76,7 @@ DB_HOST=localhost
 DB_NAME=docverse
 DB_PASSWORD=postgres
 DB_PORT=5432
-OPENAI_API_KEY=your-api-key-here
+GEMINI_API_KEY=your-gemini-api-key-here
 ```
 
 > **Critical Note**: Both `config/db.js` and `server.js` use `import.meta.url` + `fileURLToPath` to resolve the `.env` path as an **absolute path**. This is intentional — it ensures environment variables load correctly whether the script is run from the project root (`node backend/scripts/initDB.js`) or from inside `/backend`.
@@ -109,12 +109,13 @@ CREATE TABLE IF NOT EXISTS documents (
   status        VARCHAR(50) DEFAULT 'pending'
 );
 
--- 3. Text chunks + OpenAI embeddings
+-- 3. Text chunks + Gemini embeddings
 CREATE TABLE IF NOT EXISTS document_chunks (
   id            SERIAL PRIMARY KEY,
   document_id   INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+  chunk_index   INTEGER NOT NULL DEFAULT 0,
   chunk_text    TEXT NOT NULL,
-  embedding     VECTOR(1536)
+  embedding     VECTOR(768)
 );
 
 -- 4. HNSW index for cosine similarity search
@@ -154,39 +155,15 @@ curl http://localhost:5000/api/health
 ## Completed Steps
 
 - [x] **Step 1** — Monorepo boilerplate (frontend + backend directories, root scripts, Vite/Tailwind setup, base Express server, health-check UI)
-- [x] **Step 2** — Database setup (PostgreSQL pool config, `documents` + `document_chunks` tables, HNSW index on `VECTOR(1536)` column, schema verified and live)
+- [x] **Step 2** — Database setup (PostgreSQL pool config, `documents` + `document_chunks` tables, HNSW index, schema verified and live)
 - [x] **Step 3** — Document Upload API (multer middleware, pdf-parse service with scanned-doc detection, controller with full error/status lifecycle, route mounted at `/api/documents/upload`)
+- [x] **Step 4** — Text Chunking & Embedding Pipeline (integrated `@langchain/google-genai` and `RecursiveCharacterTextSplitter`, generated 768-dim embeddings using Gemini's `text-embedding-004`, stored chunks with their indices and vectors in `document_chunks`, updated parent document status to `completed`)
 
 ---
 
-## Next Steps to Build (Step 3 onwards)
+## Next Steps to Build (Step 5 onwards)
 
 The following features need to be built **in order**. Each step is independent but depends on the previous layer.
-
-### Step 4 — Text Chunking & Embedding Pipeline (NEXT)
-**Goal**: Accept PDF uploads via a REST endpoint, extract raw text, store metadata in the DB.
-
-Files to create:
-- `backend/routes/documents.js` — POST `/api/documents/upload`
-- `backend/controllers/documentController.js` — Handles multer, calls pdf-parse, writes to DB
-- `backend/services/pdfService.js` — Wraps pdf-parse for text extraction
-
-Logic:
-1. Accept `multipart/form-data` upload via `multer` (store in `/uploads`).
-2. Extract text using `pdf-parse`.
-3. Insert a row into `documents` table (`filename`, `status: 'processing'`).
-4. Return the `document_id` to the client.
-5. Register the route in `server.js`: `app.use('/api/documents', documentsRouter)`.
-
-### Step 4 — Text Chunking & Embedding Pipeline
-**Goal**: Split extracted text into overlapping chunks, call OpenAI Embeddings API, store vectors in `document_chunks`.
-
-Files to create:
-- `backend/services/chunkingService.js` — Splits text into chunks (e.g., 500 tokens, 50 token overlap)
-- `backend/services/embeddingService.js` — Calls `OpenAIEmbeddings` from `@langchain/openai`, returns `VECTOR(1536)` arrays
-- `backend/services/ingestionService.js` — Orchestrates: chunk → embed → insert into `document_chunks` → update `documents.status` to `'ready'`
-
-Call `ingestionService` from `documentController` after PDF parsing (can be async/background).
 
 ### Step 5 — RAG Chat API (Streaming)
 **Goal**: Accept a user question, perform cosine similarity vector search, retrieve top-k chunks, send to OpenAI Chat with context, stream the response.
@@ -238,7 +215,7 @@ Add client-side routing with `react-router-dom`.
 |---|---|---|
 | Module system | ES Modules (`"type":"module"`) | Future-proof, clean imports |
 | `.env` path resolution | Absolute via `import.meta.url` | Works from any CWD |
-| Vector dimensions | `VECTOR(1536)` | Matches `text-embedding-ada-002` / `text-embedding-3-small` output |
+| Vector dimensions | `VECTOR(768)` | Matches Gemini `text-embedding-004` output |
 | Vector index type | HNSW (`vector_cosine_ops`) | Best recall/speed for semantic search |
 | DB pool events | `pool.on('connect')` / `pool.on('error')` | Centralized DB event logging |
 | Tailwind version | v3 (not v4) | Stable with PostCSS plugin pipeline |
@@ -249,9 +226,9 @@ Add client-side routing with `react-router-dom`.
 
 1. **Port conflicts**: The AI assistant may start background Node processes during development. Always run `lsof -i :5000` to check for lingering processes before starting the backend.
 2. **Docker DB**: The `docverse-db` container must be **running** before starting the backend. If the backend reports `password auth failed`, run `sudo docker start docverse-db`.
-3. **OpenAI API Key**: The `.env` file currently has `OPENAI_API_KEY=your-api-key-here`. **This must be replaced** with a real key before Step 4 (embedding pipeline) can be tested.
+3. **Gemini API Key**: The `.env` file currently has `GEMINI_API_KEY=your-gemini-api-key-here`. **This must be replaced** with a real key before the embedding pipeline can be successfully executed.
 4. **pdf-parse ESM warning**: `pdf-parse` is a CommonJS package. It works fine with ES Modules via dynamic import or `createRequire` if you hit import issues.
 
 ---
 
-*Last updated: 2026-07-18 — Steps 1 & 2 complete. Steps 3–8 pending.*
+*Last updated: 2026-07-19 — Steps 1, 2, 3, & 4 complete. Steps 5–8 pending.*
