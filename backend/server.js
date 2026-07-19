@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import pool from './config/db.js';
 import documentRoutes from './routes/documentRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -24,6 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/documents', documentRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Simple health check route
 app.get('/api/health', async (req, res) => {
