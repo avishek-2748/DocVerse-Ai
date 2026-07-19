@@ -6,7 +6,7 @@
 
 ## Project Overview
 
-**DocVerse AI** is an AI-powered document intelligence platform. Users upload PDF documents which are OCR-processed, chunked, embedded using OpenAI's embedding model, and stored in a pgvector-enabled PostgreSQL database. Users can then **chat with their documents** via a streaming RAG pipeline.
+**DocVerse AI** is an AI-powered document intelligence platform. Users upload PDF documents which are parsed, chunked, embedded using the Gemini API, and stored in a pgvector-enabled PostgreSQL database. Users can then **chat with their documents** via a RAG (Retrieval-Augmented Generation) pipeline powered by Gemini.
 
 ### Core Architecture
 | Layer | Technology |
@@ -41,11 +41,14 @@ DocVerse AI/                       ← Workspace root
 │   ├── middleware/
 │   │   └── upload.js              ← Multer config: PDF-only, 50MB limit, auto-creates /uploads
 │   ├── routes/
-│   │   └── documentRoutes.js      ← POST /api/documents/upload
+│   │   ├── documentRoutes.js      ← POST /api/documents/upload
+│   │   └── chatRoutes.js          ← POST /api/chat/ask
 │   ├── controllers/
-│   │   └── documentController.js  ← Upload lifecycle: insert → extract → update status
+│   │   ├── documentController.js  ← Upload lifecycle: insert → extract → embed → complete
+│   │   └── chatController.js      ← Validates body, delegates to chatService, returns JSON
 │   ├── services/
-│   │   └── documentService.js     ← pdf-parse wrapper + scanned doc detection
+│   │   ├── documentService.js     ← pdf-parse + CustomGoogleGenerativeAIEmbeddings pipeline
+│   │   └── chatService.js         ← RAG: embed query → pgvector search → Gemini LLM answer
 │   └── uploads/                   ← Temp dir for multer (files deleted after processing)
 │
 └── frontend/                      ← React + Vite SPA
@@ -156,30 +159,31 @@ curl http://localhost:5000/api/health
 
 - [x] **Step 1** — Monorepo boilerplate (frontend + backend directories, root scripts, Vite/Tailwind setup, base Express server, health-check UI)
 - [x] **Step 2** — Database setup (PostgreSQL pool config, `documents` + `document_chunks` tables, HNSW index, schema verified and live)
-- [x] **Step 3** — Document Upload API (multer middleware, pdf-parse service with scanned-doc detection, controller with full error/status lifecycle, route mounted at `/api/documents/upload`)
-- [x] **Step 4** — Text Chunking & Embedding Pipeline (integrated `@langchain/google-genai` and `RecursiveCharacterTextSplitter`, generated 768-dim embeddings using Gemini's `text-embedding-004`, stored chunks with their indices and vectors in `document_chunks`, updated parent document status to `completed`)
+- [x] **Step 3** — Document Upload API (multer middleware, pdf-parse service with scanned-doc detection, controller with full error/status lifecycle, route at `/api/documents/upload`)
+- [x] **Step 4** — Text Chunking & Embedding Pipeline (`RecursiveCharacterTextSplitter` 1000/200, `CustomGoogleGenerativeAIEmbeddings` subclass with `outputDimensionality=768`, model `gemini-embedding-001`, stored in `document_chunks`)
+- [x] **Step 5** — RAG Chat API (`chatService.js` embeds query → pgvector cosine search top-5 → strict grounded prompt → `gemini-3.1-flash-lite` answer; route at `POST /api/chat/ask`)
 
 ---
 
-## Next Steps to Build (Step 5 onwards)
+## Next Steps to Build (Step 6 onwards)
 
 The following features need to be built **in order**. Each step is independent but depends on the previous layer.
 
-### Step 5 — RAG Chat API (Streaming)
-**Goal**: Accept a user question, perform cosine similarity vector search, retrieve top-k chunks, send to OpenAI Chat with context, stream the response.
+### ✅ Step 5 — RAG Chat API — **COMPLETE**
 
-Files to create:
-- `backend/routes/chat.js` — POST `/api/chat`
-- `backend/controllers/chatController.js` — Orchestrates vector search + LLM call
-- `backend/services/ragService.js` — LangChain `ConversationalRetrievalQAChain` or manual retrieval + `ChatOpenAI` with streaming
-
-Key SQL for vector search:
-```sql
-SELECT chunk_text, 1 - (embedding <=> $1::vector) AS similarity
-FROM document_chunks
-WHERE document_id = $2
-ORDER BY similarity DESC
-LIMIT 5;
+Live endpoint:
+```bash
+curl -s -X POST http://localhost:5000/api/chat/ask \
+  -H "Content-Type: application/json" \
+  -d '{"documentId": 7, "query": "What is this document about?"}'
+```
+Returns:
+```json
+{
+  "success": true,
+  "answer": "This document is an email notification regarding the Account Activation Status...",
+  "metadata": { "documentId": 7, "chunksRetrieved": 4, "topSimilarity": 0.5051 }
+}
 ```
 
 ### Step 6 — Frontend Feature Build-out
@@ -215,8 +219,12 @@ Add client-side routing with `react-router-dom`.
 |---|---|---|
 | Module system | ES Modules (`"type":"module"`) | Future-proof, clean imports |
 | `.env` path resolution | Absolute via `import.meta.url` | Works from any CWD |
-| Vector dimensions | `VECTOR(768)` | Matches Gemini `text-embedding-004` output |
+| Embedding model | `gemini-embedding-001` via `CustomGoogleGenerativeAIEmbeddings` | Only embedding model available to `AQ.` keys |
+| Vector dimensions | `VECTOR(768)` with `outputDimensionality: 768` (MRL) | HNSW hard limit is 2000 dims; 768 is efficient & accurate |
 | Vector index type | HNSW (`vector_cosine_ops`) | Best recall/speed for semantic search |
+| Chat LLM | `gemini-3.1-flash-lite` | Only `generateContent` model confirmed working on this project's free tier |
+| RAG top-k | 5 chunks | Balances context richness vs token budget |
+| RAG prompt style | Strict system prompt with grounding rules | Prevents hallucination; answers from document only |
 | DB pool events | `pool.on('connect')` / `pool.on('error')` | Centralized DB event logging |
 | Tailwind version | v3 (not v4) | Stable with PostCSS plugin pipeline |
 
@@ -224,11 +232,18 @@ Add client-side routing with `react-router-dom`.
 
 ## Known Issues / Watch-outs
 
-1. **Port conflicts**: The AI assistant may start background Node processes during development. Always run `lsof -i :5000` to check for lingering processes before starting the backend.
-2. **Docker DB**: The `docverse-db` container must be **running** before starting the backend. If the backend reports `password auth failed`, run `sudo docker start docverse-db`.
-3. **Gemini API Key**: The `.env` file currently has `GEMINI_API_KEY=your-gemini-api-key-here`. **This must be replaced** with a real key before the embedding pipeline can be successfully executed.
-4. **pdf-parse ESM warning**: `pdf-parse` is a CommonJS package. It works fine with ES Modules via dynamic import or `createRequire` if you hit import issues.
+1. **Port conflicts**: Always run `lsof -i :5000` to check for lingering Node processes before starting the backend.
+2. **Docker DB**: `docverse-db` container must be **running** before starting the backend. Run: `docker start docverse-db`.
+3. **Gemini API Key format**: This project uses the newer `AQ.` key format (not `AIza...`). Keys must be created from [aistudio.google.com](https://aistudio.google.com/app/apikey).
+4. **Model availability with `AQ.` keys**: Not all Gemini models are available on the free tier of this project:
+   - ✅ `gemini-embedding-001` — Works for embeddings.
+   - ✅ `gemini-3.1-flash-lite` — Works for chat generation.
+   - ❌ `text-embedding-004`, `embedding-001` — 404 Not Found.
+   - ❌ `gemini-2.0-flash`, `gemini-1.5-flash` — 429 Quota Exceeded (limit: 0).
+5. **LangChain `outputDimensionality` limitation**: LangChain JS's `GoogleGenerativeAIEmbeddings` doesn't forward `outputDimensionality` to the SDK. We use `CustomGoogleGenerativeAIEmbeddings` (subclass overriding `_convertToContent`) defined in both `documentService.js` and `chatService.js`. **Both MUST use the same model and dimension** or the pgvector cosine search will throw a dimension mismatch error.
+6. **HNSW dimension limit**: pgvector HNSW index supports a maximum of **2000 dimensions**. Gemini Embedding 2 / Embedding 001 default to 3072 dims — always pass `outputDimensionality: 768`.
+7. **pdf-parse ESM**: `pdf-parse` is a CommonJS package. Use `createRequire(import.meta.url)` for ESM interop.
 
 ---
 
-*Last updated: 2026-07-19 — Steps 1, 2, 3, & 4 complete. Steps 5–8 pending.*
+*Last updated: 2026-07-19 — Steps 1–5 complete. Steps 6–8 pending.*
