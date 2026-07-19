@@ -1,0 +1,77 @@
+import { useState, useEffect } from 'react';
+import { getSummary } from '../services/api';
+
+export default function SummaryPanel({ activeDocument }) {
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    setSummary(null);
+    setError(null);
+  }, [activeDocument]);
+
+  const fetchSummary = async () => {
+    if (!activeDocument) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getSummary(activeDocument.document_id);
+      if (data.success) {
+        setSummary(data.summary);
+      } else {
+        throw new Error(data.message || 'Failed to generate summary');
+      }
+    } catch (err) {
+      setError(err.message || 'An error occurred while generating the summary.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!activeDocument) {
+    return (
+      <div className="flex-grow flex items-center justify-center text-slate-500">
+        <p>Please upload a document to generate a summary.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-grow overflow-y-auto p-6 flex flex-col">
+      <div className="mb-6 flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-bold text-slate-200">Document Summary</h3>
+          <p className="text-xs text-slate-500">AI-generated overview of the entire document</p>
+        </div>
+        {!summary && !loading && (
+          <button
+            onClick={fetchSummary}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-all"
+          >
+            Generate Summary
+          </button>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="flex flex-col items-center justify-center flex-grow space-y-4">
+          <div className="h-12 w-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+          <p className="text-indigo-400 font-semibold text-sm animate-pulse">Reading and summarizing...</p>
+        </div>
+      ) : error ? (
+        <div className="p-4 bg-red-950/30 border border-red-900/50 rounded-xl text-sm text-red-400">
+          {error}
+        </div>
+      ) : summary ? (
+        <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 text-sm leading-relaxed text-slate-300 whitespace-pre-wrap">
+          {summary}
+        </div>
+      ) : (
+        <div className="flex-grow flex items-center justify-center text-slate-500">
+          <p>Click "Generate Summary" to begin.</p>
+        </div>
+      )}
+    </div>
+  );
+}

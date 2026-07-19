@@ -1,5 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { uploadDocument } from '../services/api';
+import ChatPanel from './ChatPanel';
+import SummaryPanel from './SummaryPanel';
+import QuizPanel from './QuizPanel';
+import ComparePanel from './ComparePanel';
 
 export default function Dashboard({
   activeDocument,
@@ -11,14 +15,8 @@ export default function Dashboard({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [dragActive, setDragActive] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
-
-  // Auto-scroll chat to the bottom on new messages
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, chatLoading]);
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat', 'summary', 'quiz', 'compare'
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -75,13 +73,6 @@ export default function Dashboard({
     fileInputRef.current.click();
   };
 
-  const handleSend = (e) => {
-    e.preventDefault();
-    if (!inputValue.trim() || chatLoading || !activeDocument) return;
-    onSendMessage(inputValue.trim());
-    setInputValue('');
-  };
-
   const formatBytes = (bytes, decimals = 2) => {
     if (!bytes) return '0 Bytes';
     const k = 1024;
@@ -91,16 +82,10 @@ export default function Dashboard({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
 
-  const suggestedQuestions = [
-    'What is the main topic of this document?',
-    'Summarize this document in 3 bullet points.',
-    'Are there any key action items or deadlines mentioned?',
-  ];
-
   return (
     <div className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col md:flex-row gap-6 overflow-hidden h-[calc(100vh-130px)] min-h-[500px]">
       {/* ─── LEFT PANEL: DOCUMENT MANAGEMENT ─── */}
-      <div className="w-full md:w-5/12 flex flex-col gap-6 h-full overflow-y-auto pr-0 md:pr-2">
+      <div className="w-full md:w-4/12 flex flex-col gap-6 h-full overflow-y-auto pr-0 md:pr-2">
         {/* Upload Container */}
         <div className="glass rounded-3xl p-6 shadow-xl flex flex-col">
           <h2 className="text-xl font-bold mb-4 flex items-center space-x-2">
@@ -237,114 +222,51 @@ export default function Dashboard({
         )}
       </div>
 
-      {/* ─── RIGHT PANEL: INTERACTIVE AI CHAT ─── */}
-      <div className="flex-grow w-full md:w-7/12 glass rounded-3xl shadow-xl flex flex-col h-full overflow-hidden">
-        {/* Chat Header */}
-        <div className="px-6 py-4 border-b border-slate-900 flex items-center justify-between bg-slate-950/20">
-          <div className="flex items-center space-x-2.5">
-            <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-200">Interactive Document AI</h3>
-              <p className="text-xs text-slate-500">Gemini-backed context query engine</p>
-            </div>
-          </div>
+      {/* ─── RIGHT PANEL: INTELLIGENCE SUITE ─── */}
+      <div className="flex-grow w-full md:w-8/12 glass rounded-3xl shadow-xl flex flex-col h-full overflow-hidden">
+        
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-slate-900 bg-slate-950/20 px-2 pt-2">
+          {['chat', 'summary', 'quiz', 'compare'].map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-6 py-3.5 text-sm font-bold tracking-wide capitalize transition-colors relative ${
+                activeTab === tab
+                  ? 'text-indigo-400'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {tab}
+              {activeTab === tab && (
+                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-500 rounded-t-full shadow-[0_-2px_10px_rgba(99,102,241,0.5)]"></span>
+              )}
+            </button>
+          ))}
         </div>
 
-        {/* Messages Body */}
-        <div className="flex-grow overflow-y-auto p-6 space-y-4 bg-slate-950/10">
-          {messages.length === 0 ? (
-            <div className="h-full flex flex-col justify-center items-center text-center px-4">
-              <div className="h-14 w-14 rounded-2xl bg-indigo-500/5 text-indigo-500/50 flex items-center justify-center mb-4 border border-indigo-500/10 animate-pulse">
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <h4 className="text-base font-bold text-slate-400">Ask your document questions</h4>
-              <p className="text-xs text-slate-500 max-w-sm mt-1 mb-6">
-                Upload a document to enable queries. Questions will be answered using semantic similarity search.
-              </p>
-
-              {activeDocument && (
-                <div className="w-full max-w-md space-y-2">
-                  <p className="text-xs font-semibold text-slate-500 text-left uppercase tracking-wider pl-1">Suggested Questions</p>
-                  {suggestedQuestions.map((q, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setInputValue(q);
-                      }}
-                      className="w-full text-left p-3 rounded-xl bg-slate-900/60 border border-slate-900 text-xs text-slate-300 hover:text-white hover:border-slate-800 transition-all text-ellipsis overflow-hidden whitespace-nowrap block"
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-md leading-relaxed whitespace-pre-wrap ${
-                      message.sender === 'user'
-                        ? 'bg-indigo-600 text-white rounded-br-none'
-                        : 'bg-slate-900 text-slate-200 border border-slate-900 rounded-bl-none'
-                    }`}
-                  >
-                    {message.text}
-                  </div>
-                </div>
-              ))}
-
-              {/* Chat Loading Skeleton */}
-              {chatLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-slate-900 text-slate-200 border border-slate-900 rounded-2xl rounded-bl-none px-4 py-3 max-w-[85%] space-y-2">
-                    <div className="flex space-x-1.5 py-1 justify-center items-center">
-                      <span className="h-2 w-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                      <span className="h-2 w-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                      <span className="h-2 w-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-          )}
-        </div>
-
-        {/* Input Footer */}
-        <form onSubmit={handleSend} className="p-4 border-t border-slate-900 bg-slate-950/20 flex gap-3">
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            disabled={!activeDocument || chatLoading}
-            placeholder={
-              activeDocument
-                ? "Ask a question about the active document..."
-                : "Please upload a document on the left panel to begin chatting..."
-            }
-            className="flex-grow bg-slate-950 border border-slate-900 hover:border-slate-800 focus:border-indigo-500/80 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        {/* Tab Content Rendering */}
+        {activeTab === 'chat' && (
+          <ChatPanel 
+            activeDocument={activeDocument} 
+            messages={messages} 
+            onSendMessage={onSendMessage} 
+            chatLoading={chatLoading} 
           />
-          <button
-            type="submit"
-            disabled={!activeDocument || !inputValue.trim() || chatLoading}
-            className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-5 py-3 text-sm transition-all flex items-center justify-center shrink-0 border border-indigo-500/10 shadow-lg shadow-indigo-600/15"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-            </svg>
-          </button>
-        </form>
+        )}
+        
+        {activeTab === 'summary' && (
+          <SummaryPanel activeDocument={activeDocument} />
+        )}
+        
+        {activeTab === 'quiz' && (
+          <QuizPanel activeDocument={activeDocument} />
+        )}
+
+        {activeTab === 'compare' && (
+          <ComparePanel activeDocument={activeDocument} />
+        )}
+        
       </div>
     </div>
   );

@@ -20,7 +20,26 @@ DocVerse AI/
     └── tailwind.config.js
 ```
 
-## Getting Started
+## Docker Deployment (Recommended)
+
+The easiest way to run DocVerse AI is using Docker Compose. This single command will build the frontend, backend, and spin up the PostgreSQL pgvector database automatically.
+
+1. Create a `.env` file in the `/backend` directory containing your Gemini API key and a JWT secret:
+   ```env
+   OPENAI_API_KEY=your-api-key-here
+   JWT_SECRET=your_super_secret_key
+   ```
+2. Run the platform from the root directory:
+   ```bash
+   docker-compose up --build -d
+   ```
+
+- **Frontend UI**: http://localhost
+- **Backend API**: http://localhost:5000
+
+---
+
+## Local Development (Without Docker)
 
 ### 1. Install Dependencies
 Run npm install in both the root directories:
