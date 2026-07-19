@@ -8,6 +8,8 @@ import documentRoutes from './routes/documentRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import intelligenceRoutes from './routes/intelligenceRoutes.js';
 import comparisonRoutes from './routes/comparisonRoutes.js';
+import authRoutes from './routes/authRoutes.js';
+import { verifyToken, verifyDocumentOwnership } from './middleware/authMiddleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -26,10 +28,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/documents', documentRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/intelligence', intelligenceRoutes);
-app.use('/api/comparison', comparisonRoutes);
+// Public Routes
+app.use('/api/auth', authRoutes);
+
+// Protected Routes
+app.use('/api/documents', verifyToken, verifyDocumentOwnership, documentRoutes);
+app.use('/api/chat', verifyToken, verifyDocumentOwnership, chatRoutes);
+app.use('/api/intelligence', verifyToken, verifyDocumentOwnership, intelligenceRoutes);
+app.use('/api/comparison', verifyToken, verifyDocumentOwnership, comparisonRoutes);
 
 // Simple health check route
 app.get('/api/health', async (req, res) => {

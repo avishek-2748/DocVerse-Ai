@@ -39,11 +39,12 @@ async function uploadDocument(req, res) {
 
   try {
     // ── Step 1: Insert document record with 'processing' status ──────────────
+    const userId = req.user.id;
     const insertResult = await pool.query(
-      `INSERT INTO documents (filename, status)
-       VALUES ($1, $2)
+      `INSERT INTO documents (filename, status, user_id)
+       VALUES ($1, $2, $3)
        RETURNING id`,
-      [originalname, 'processing']
+      [originalname, 'processing', userId]
     );
     documentId = insertResult.rows[0].id;
     console.log(`[documentController] Created document record id=${documentId} for "${originalname}".`);
