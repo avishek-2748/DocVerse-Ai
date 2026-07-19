@@ -8,6 +8,26 @@ import pool from '../config/db.js';
 const require = createRequire(import.meta.url);
 const pdfParse = require('pdf-parse');
 
+// Subclass GoogleGenerativeAIEmbeddings to pass outputDimensionality.
+// This is necessary because LangChain's wrapper doesn't pass custom properties
+// to the Google Gen AI SDK's embedContent method by default.
+class CustomGoogleGenerativeAIEmbeddings extends GoogleGenerativeAIEmbeddings {
+  outputDimensionality;
+
+  constructor(fields) {
+    super(fields);
+    this.outputDimensionality = fields?.outputDimensionality;
+  }
+
+  _convertToContent(text) {
+    const base = super._convertToContent(text);
+    if (this.outputDimensionality) {
+      base.outputDimensionality = this.outputDimensionality;
+    }
+    return base;
+  }
+}
+
 // Minimum character threshold — below this we treat the PDF as image-based/scanned
 const MIN_TEXT_LENGTH = 50;
 
@@ -87,13 +107,13 @@ async function processAndStoreEmbeddings(documentId, rawText) {
   }
 
   // ── Step 2: Initialise the Gemini embeddings model ──────────────────────────
-  // Model options:
-  //   • "text-embedding-004"          – stable, general-purpose
-  //   • "embedding-001"               – legacy stable
-  //   • "gemini-embedding-exp-03-07"  – experimental, higher quality
-  const embeddingsModel = new GoogleGenerativeAIEmbeddings({
+  // We use gemini-embedding-001 (which supports MRL dimensionality reduction)
+  // and truncate the output to 768 dimensions so it fits inside the PGVector
+  // HNSW index size limit (2000 dimensions).
+  const embeddingsModel = new CustomGoogleGenerativeAIEmbeddings({
     apiKey: process.env.GEMINI_API_KEY,
-    model: 'text-embedding-004', // upgrade to gemini-embedding-exp-03-07 when available in your region
+    modelName: 'gemini-embedding-001',
+    outputDimensionality: 768,
   });
 
   // ── Step 3: Embed each chunk and write it to the database ───────────────────
