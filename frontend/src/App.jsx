@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
+import AuthScreen from './components/AuthScreen';
 import { askQuestion } from './services/api';
 
 function App() {
@@ -7,6 +8,10 @@ function App() {
   const [healthLoading, setHealthLoading] = useState(true);
   const [healthError, setHealthError] = useState(null);
   const [retryCount, setRetryCount] = useState(0);
+
+  // Auth state
+  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+  const [currentUser, setCurrentUser] = useState(null); // Optional: can decode token here if needed
 
   // Core App states for Document & Chat interaction
   const [activeDocument, setActiveDocument] = useState(null);
@@ -129,13 +134,32 @@ function App() {
                 API Online
               </span>
             )}
+            {isAuthenticated && (
+              <button
+                onClick={() => {
+                  localStorage.removeItem('token');
+                  setIsAuthenticated(false);
+                  setCurrentUser(null);
+                  setActiveDocument(null);
+                  setMessages([]);
+                }}
+                className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900/60 text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all ml-2"
+              >
+                Logout
+              </button>
+            )}
           </div>
         </div>
       </header>
 
       {/* Main Content Area */}
       <main className="flex-grow w-full flex flex-col justify-start">
-        {healthError ? (
+        {!isAuthenticated ? (
+          <AuthScreen onLoginSuccess={(user) => {
+            setCurrentUser(user);
+            setIsAuthenticated(true);
+          }} />
+        ) : healthError ? (
           <div className="flex-grow flex flex-col justify-center items-center py-20 px-6 max-w-xl mx-auto text-center">
             <div className="h-16 w-16 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center mb-6 border border-red-500/20">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">

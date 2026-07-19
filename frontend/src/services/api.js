@@ -1,5 +1,46 @@
 const API_BASE_URL = 'http://localhost:5000/api';
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
+
+/**
+ * Register a new user.
+ */
+export async function register(email, password) {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Registration failed');
+  }
+
+  return response.json();
+}
+
+/**
+ * Login a user.
+ */
+export async function login(email, password) {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || 'Login failed');
+  }
+
+  return response.json();
+}
+
 /**
  * Uploads a PDF document to the backend API.
  *
@@ -12,6 +53,7 @@ export async function uploadDocument(file) {
 
   const response = await fetch(`${API_BASE_URL}/documents/upload`, {
     method: 'POST',
+    headers: { ...getAuthHeaders() },
     body: formData,
   });
 
@@ -35,6 +77,7 @@ export async function askQuestion(documentId, query) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({
       documentId,

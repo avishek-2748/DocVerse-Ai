@@ -39,13 +39,16 @@ DocVerse AI/                       ← Workspace root
 │   ├── scripts/
 │   │   └── initDB.js              ← One-time schema setup script (run manually)
 │   ├── middleware/
-│   │   └── upload.js              ← Multer config: PDF-only, 50MB limit, auto-creates /uploads
+│   │   ├── upload.js              ← Multer config: PDF-only, 50MB limit, auto-creates /uploads
+│   │   └── authMiddleware.js      ← JWT verification & document ownership checks
 │   ├── routes/
+│   │   ├── authRoutes.js          ← POST /api/auth/register, /login
 │   │   ├── documentRoutes.js      ← POST /api/documents/upload
 │   │   ├── chatRoutes.js          ← POST /api/chat/ask
 │   │   ├── intelligenceRoutes.js  ← GET /api/intelligence/summary/:id, /quiz/:id
 │   │   └── comparisonRoutes.js    ← POST /api/comparison/compare
 │   ├── controllers/
+│   │   ├── authController.js      ← Registration & login logic (bcrypt + jsonwebtoken)
 │   │   ├── documentController.js  ← Upload lifecycle: insert → extract → embed → complete
 │   │   ├── chatController.js      ← Validates body, delegates to chatService, returns JSON
 │   │   ├── intelligenceController.js ← getSummary & getQuiz with input validation
@@ -171,6 +174,7 @@ curl http://localhost:5000/api/health
 - [x] **Step 6** — Frontend UI & Chat Component (split-screen drag-and-drop dashboard, reactive active doc info panel, chat message history scroll, interactive suggested questions, and connection failure fallback)
 - [x] **Step 7** — Document Intelligence Features (Map-Reduce summarization + structured JSON quiz generation via `intelligenceService.js`; routes at `GET /api/intelligence/summary/:id` and `GET /api/intelligence/quiz/:id?count=N`)
 - [x] **Step 8** — Multi-Document Version Comparison API (JSON document diffing and report generation via `comparisonService.js`; route at `POST /api/comparison/compare`)
+- [x] **Step 9** — JWT Authentication (User registration, login, protected routes, and multi-tenant document scoping via `authMiddleware.js` and React `AuthScreen.jsx`)
 
 ---
 
@@ -212,10 +216,19 @@ curl -s "http://localhost:5000/api/intelligence/quiz/7?count=3" | python3 -m jso
 Live endpoint:
 ```bash
 curl -s -X POST http://localhost:5000/api/comparison/compare \
+  -H "Authorization: Bearer <TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{"documentIdA": 7, "documentIdB": 10}'
 ```
 Returns a structured JSON mapping with `summaryOfChanges`, `additions`, `deletions`, and `modifications`.
+
+### ✅ Step 9 — JWT Authentication — **COMPLETE**
+
+Authentication flow implemented across the stack:
+- Database migration added `users` table and `user_id` foreign key on `documents`.
+- Backend exposes `POST /api/auth/register` and `POST /api/auth/login`.
+- All other API routes (`/documents`, `/chat`, `/intelligence`, `/comparison`) are secured by `verifyToken` and `verifyDocumentOwnership` middlewares.
+- Frontend includes a premium `AuthScreen.jsx` component that blocks access to the dashboard unless logged in, and `api.js` automatically attaches the token to outbound requests.
 
 ---
 
@@ -257,4 +270,4 @@ Returns a structured JSON mapping with `summaryOfChanges`, `additions`, `deletio
 
 ---
 
-*Last updated: 2026-07-20 — Steps 1–8 complete! (Backend APIs fully implemented)*
+*Last updated: 2026-07-20 — Steps 1–9 complete!*
