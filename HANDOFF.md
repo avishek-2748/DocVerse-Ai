@@ -43,15 +43,18 @@ DocVerse AI/                       ← Workspace root
 │   ├── routes/
 │   │   ├── documentRoutes.js      ← POST /api/documents/upload
 │   │   ├── chatRoutes.js          ← POST /api/chat/ask
-│   │   └── intelligenceRoutes.js  ← GET /api/intelligence/summary/:id, /quiz/:id
+│   │   ├── intelligenceRoutes.js  ← GET /api/intelligence/summary/:id, /quiz/:id
+│   │   └── comparisonRoutes.js    ← POST /api/comparison/compare
 │   ├── controllers/
 │   │   ├── documentController.js  ← Upload lifecycle: insert → extract → embed → complete
 │   │   ├── chatController.js      ← Validates body, delegates to chatService, returns JSON
-│   │   └── intelligenceController.js ← getSummary & getQuiz with input validation
+│   │   ├── intelligenceController.js ← getSummary & getQuiz with input validation
+│   │   └── comparisonController.js   ← compareVersions coordinating two document comparisons
 │   ├── services/
 │   │   ├── documentService.js     ← pdf-parse + CustomGoogleGenerativeAIEmbeddings pipeline
 │   │   ├── chatService.js         ← RAG: embed query → pgvector search → Gemini LLM answer
-│   │   └── intelligenceService.js ← Map-Reduce summary + structured JSON quiz generation
+│   │   ├── intelligenceService.js ← Map-Reduce summary + structured JSON quiz generation
+│   │   └── comparisonService.js   ← Multi-Document JSON diffing service via LLM
 │   └── uploads/                   ← Temp dir for multer (files deleted after processing)
 │
 └── frontend/                      ← React + Vite SPA
@@ -167,6 +170,7 @@ curl http://localhost:5000/api/health
 - [x] **Step 5** — RAG Chat API (`chatService.js` embeds query → pgvector cosine search top-5 → strict grounded prompt → `gemini-3.1-flash-lite` answer; route at `POST /api/chat/ask`)
 - [x] **Step 6** — Frontend UI & Chat Component (split-screen drag-and-drop dashboard, reactive active doc info panel, chat message history scroll, interactive suggested questions, and connection failure fallback)
 - [x] **Step 7** — Document Intelligence Features (Map-Reduce summarization + structured JSON quiz generation via `intelligenceService.js`; routes at `GET /api/intelligence/summary/:id` and `GET /api/intelligence/quiz/:id?count=N`)
+- [x] **Step 8** — Multi-Document Version Comparison API (JSON document diffing and report generation via `comparisonService.js`; route at `POST /api/comparison/compare`)
 
 ---
 
@@ -203,8 +207,15 @@ Quiz endpoint (optional `?count=N`, default 5, max 20):
 curl -s "http://localhost:5000/api/intelligence/quiz/7?count=3" | python3 -m json.tool
 ```
 
-### Step 8 — Dockerization & Production Config
-**Goal**: Add `Dockerfile` for the backend, `docker-compose.yml` for orchestrating the full stack (backend + frontend + db), configure for AWS deployment.
+### ✅ Step 8 — Multi-Document Version Comparison API — **COMPLETE**
+
+Live endpoint:
+```bash
+curl -s -X POST http://localhost:5000/api/comparison/compare \
+  -H "Content-Type: application/json" \
+  -d '{"documentIdA": 7, "documentIdB": 10}'
+```
+Returns a structured JSON mapping with `summaryOfChanges`, `additions`, `deletions`, and `modifications`.
 
 ---
 
@@ -246,4 +257,4 @@ curl -s "http://localhost:5000/api/intelligence/quiz/7?count=3" | python3 -m jso
 
 ---
 
-*Last updated: 2026-07-20 — Steps 1–7 complete. Step 8 pending.*
+*Last updated: 2026-07-20 — Steps 1–8 complete! (Backend APIs fully implemented)*
