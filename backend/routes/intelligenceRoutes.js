@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getSummary, getQuiz } from '../controllers/intelligenceController.js';
+import { getSummary, getQuiz, getFlashcards, rewriteText } from '../controllers/intelligenceController.js';
 
 const router = Router();
 
@@ -18,5 +18,9 @@ router.get('/summary/:documentId', getSummary);
  * Optional query param: count (1–20, default 5).
  */
 router.get('/quiz/:documentId', getQuiz);
+
+router.get('/flashcards/:documentId', getFlashcards);
+
+router.post('/rewrite', rewriteText);
 
 export default router;

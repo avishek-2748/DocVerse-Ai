@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getSummary } from '../services/api';
+import MarkdownRenderer from './MarkdownRenderer';
 
 export default function SummaryPanel({ activeDocument }) {
   const [summary, setSummary] = useState(null);
@@ -29,6 +30,17 @@ export default function SummaryPanel({ activeDocument }) {
     }
   };
 
+  const handleExport = () => {
+    if (!summary) return;
+    const blob = new Blob([summary], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeDocument?.filename || 'document'}_summary.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!activeDocument) {
     return (
       <div className="flex-grow flex items-center justify-center text-slate-500">
@@ -52,6 +64,15 @@ export default function SummaryPanel({ activeDocument }) {
             Generate Summary
           </button>
         )}
+        {summary && !loading && (
+          <button
+            onClick={handleExport}
+            className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 px-4 rounded-xl text-sm transition-all flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+            Export
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -64,8 +85,8 @@ export default function SummaryPanel({ activeDocument }) {
           {error}
         </div>
       ) : summary ? (
-        <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 text-sm leading-relaxed text-slate-300 whitespace-pre-wrap">
-          {summary}
+        <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
+          <MarkdownRenderer text={summary} />
         </div>
       ) : (
         <div className="flex-grow flex items-center justify-center text-slate-500">

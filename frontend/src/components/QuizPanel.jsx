@@ -40,10 +40,13 @@ export default function QuizPanel({ activeDocument }) {
     setUserAnswers(prev => ({ ...prev, [qIndex]: optionIndex }));
   };
 
+  const letterToIndex = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
+
   const calculateScore = () => {
     let score = 0;
     quiz.forEach((q, idx) => {
-      if (userAnswers[idx] === q.correctAnswerIndex) score++;
+      const correctIdx = letterToIndex[q.correctAnswer?.charAt(0)] ?? 0;
+      if (userAnswers[idx] === correctIdx) score++;
     });
     return score;
   };
@@ -90,7 +93,8 @@ export default function QuizPanel({ activeDocument }) {
               <div className="space-y-2">
                 {q.options.map((option, oIndex) => {
                   const isSelected = userAnswers[qIndex] === oIndex;
-                  const isCorrect = q.correctAnswerIndex === oIndex;
+                  const correctIdx = letterToIndex[q.correctAnswer?.charAt(0)] ?? 0;
+                  const isCorrect = correctIdx === oIndex;
                   
                   let btnClass = "w-full text-left p-3 rounded-xl border text-sm transition-all ";
                   if (!showResults) {

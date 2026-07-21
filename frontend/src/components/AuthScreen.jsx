@@ -3,6 +3,7 @@ import { login, register } from '../services/api';
 
 export default function AuthScreen({ onLoginSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -10,7 +11,7 @@ export default function AuthScreen({ onLoginSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) {
+    if (!email || !password || (!isLogin && !name)) {
       setError('Please fill in all fields.');
       return;
     }
@@ -23,7 +24,7 @@ export default function AuthScreen({ onLoginSuccess }) {
       if (isLogin) {
         response = await login(email, password);
       } else {
-        response = await register(email, password);
+        response = await register(name, email, password);
       }
       
       if (response.success && response.token) {
@@ -62,6 +63,20 @@ export default function AuthScreen({ onLoginSuccess }) {
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {!isLogin && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-1">Full Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full bg-slate-900/60 border border-slate-700 hover:border-slate-600 focus:border-indigo-500/80 rounded-xl px-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/20 transition-all"
+                  disabled={loading}
+                />
+              </div>
+            )}
+            
             <div>
               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 ml-1">Email Address</label>
               <input

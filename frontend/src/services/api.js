@@ -8,11 +8,11 @@ const getAuthHeaders = () => {
 /**
  * Register a new user.
  */
-export async function register(email, password) {
+export async function register(name, email, password) {
   const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ name, email, password }),
   });
 
   if (!response.ok) {
@@ -62,6 +62,21 @@ export async function uploadDocument(file) {
     throw new Error(errorData.error || errorData.message || `Upload failed with status ${response.status}`);
   }
 
+  return response.json();
+}
+
+/**
+ * Get all documents for the current user.
+ */
+export async function getDocuments() {
+  const response = await fetch(`${API_BASE_URL}/documents`, {
+    method: 'GET',
+    headers: { ...getAuthHeaders() },
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || `Failed to fetch documents with status ${response.status}`);
+  }
   return response.json();
 }
 
@@ -140,6 +155,121 @@ export async function compareDocuments(documentIdA, documentIdB) {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(errorData.error || errorData.message || `Comparison failed with status ${response.status}`);
+  }
+  return response.json();
+}
+
+/**
+ * Deletes a single document by ID.
+ */
+export async function deleteDocument(documentId) {
+  const response = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
+    method: 'DELETE',
+    headers: { ...getAuthHeaders() },
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || `Delete failed with status ${response.status}`);
+  }
+  return response.json();
+}
+
+/**
+ * Bulk-deletes documents by strategy.
+ * @param {'all'|'oldest'|'newest'} strategy
+ * @param {number} [count] - Required for 'oldest' and 'newest' strategies.
+ */
+export async function bulkDeleteDocuments(strategy, count) {
+  const response = await fetch(`${API_BASE_URL}/documents`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ strategy, count }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || `Bulk delete failed with status ${response.status}`);
+  }
+  return response.json();
+}
+
+/**
+ * Get conversation history for a document.
+ */
+export async function getConversations(documentId) {
+  const response = await fetch(`${API_BASE_URL}/conversations/${documentId}`, {
+    method: 'GET',
+    headers: { ...getAuthHeaders() },
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || `Failed to fetch conversations`);
+  }
+  return response.json();
+}
+
+/**
+ * Clear conversation history for a document.
+ */
+export async function clearConversations(documentId) {
+  const response = await fetch(`${API_BASE_URL}/conversations/${documentId}`, {
+    method: 'DELETE',
+    headers: { ...getAuthHeaders() },
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || `Failed to clear conversations`);
+  }
+  return response.json();
+}
+
+/**
+ * Get storage usage for the current user.
+ */
+export async function getStorageUsage() {
+  const response = await fetch(`${API_BASE_URL}/storage/usage`, {
+    method: 'GET',
+    headers: { ...getAuthHeaders() },
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || `Failed to fetch storage usage`);
+  }
+  return response.json();
+}
+
+/**
+ * Fetches AI-generated flashcards for a given document.
+ */
+export async function getFlashcards(documentId, count = 10) {
+  const response = await fetch(`${API_BASE_URL}/intelligence/flashcards/${documentId}?count=${count}`, {
+    method: 'GET',
+    headers: { ...getAuthHeaders() },
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || `Failed to fetch flashcards`);
+  }
+  return response.json();
+}
+
+/**
+ * Rewrites arbitrary text based on a requested style.
+ */
+export async function rewriteText(text, style) {
+  const response = await fetch(`${API_BASE_URL}/intelligence/rewrite`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ text, style }),
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || errorData.message || `Failed to rewrite text`);
   }
   return response.json();
 }

@@ -9,6 +9,8 @@ import chatRoutes from './routes/chatRoutes.js';
 import intelligenceRoutes from './routes/intelligenceRoutes.js';
 import comparisonRoutes from './routes/comparisonRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import conversationRoutes from './routes/conversationRoutes.js';
+import storageRoutes from './routes/storageRoutes.js';
 import { verifyToken, verifyDocumentOwnership } from './middleware/authMiddleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -36,6 +38,8 @@ app.use('/api/documents', verifyToken, verifyDocumentOwnership, documentRoutes);
 app.use('/api/chat', verifyToken, verifyDocumentOwnership, chatRoutes);
 app.use('/api/intelligence', verifyToken, verifyDocumentOwnership, intelligenceRoutes);
 app.use('/api/comparison', verifyToken, verifyDocumentOwnership, comparisonRoutes);
+app.use('/api/conversations', verifyToken, verifyDocumentOwnership, conversationRoutes);
+app.use('/api/storage', verifyToken, storageRoutes);
 
 // Simple health check route
 app.get('/api/health', async (req, res) => {

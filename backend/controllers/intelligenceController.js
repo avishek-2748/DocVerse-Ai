@@ -1,4 +1,4 @@
-import { generateSummary, generateQuiz } from '../services/intelligenceService.js';
+import { generateSummary, generateQuiz, generateFlashcards, rewriteText as rewriteTextService } from '../services/intelligenceService.js';
 
 /**
  * GET /api/intelligence/summary/:documentId
@@ -107,4 +107,66 @@ async function getQuiz(req, res) {
   }
 }
 
-export { getSummary, getQuiz };
+/**
+ * GET /api/intelligence/flashcards/:documentId
+ *
+ * Generates flashcards based on the specified document.
+ * Optionally accepts ?count=N query parameter (default 10).
+ */
+async function getFlashcards(req, res) {
+  const { documentId } = req.params;
+  const cardCount = parseInt(req.query.count, 10) || 10;
+
+  const parsedId = parseInt(documentId, 10);
+  if (isNaN(parsedId) || parsedId <= 0) {
+    return res.status(400).json({ success: false, message: 'documentId must be a positive integer.' });
+  }
+
+  if (cardCount < 1 || cardCount > 30) {
+    return res.status(400).json({ success: false, message: 'Card count must be between 1 and 30.' });
+  }
+
+  try {
+    console.log(`[intelligenceController] getFlashcards — documentId=${parsedId}, count=${cardCount}`);
+    const { flashcards, chunkCount } = await generateFlashcards(parsedId, cardCount);
+
+    return res.status(200).json({
+      success: true,
+      flashcards,
+      metadata: { documentId: parsedId, cardCount: flashcards.length, chunkCount },
+    });
+  } catch (error) {
+    console.error('[intelligenceController] getFlashcards error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to generate flashcards.', error: error.message });
+  }
+}
+
+/**
+ * POST /api/intelligence/rewrite
+ *
+ * Rewrites arbitrary text based on a requested style.
+ * Request body: { text: string, style: string }
+ */
+async function rewriteText(req, res) {
+  const { text, style } = req.body;
+
+  if (!text || typeof text !== 'string' || text.trim().length === 0) {
+    return res.status(400).json({ success: false, message: 'Missing or empty required field: text.' });
+  }
+
+  if (!style || typeof style !== 'string') {
+    return res.status(400).json({ success: false, message: 'Missing or empty required field: style.' });
+  }
+
+  try {
+    console.log(`[intelligenceController] rewriteText — style=${style}, textLength=${text.length}`);
+    const rewritten = await rewriteTextService(text, style);
+
+    return res.status(200).json({ success: true, rewritten });
+  } catch (error) {
+    console.error('[intelligenceController] rewriteText error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to rewrite text.', error: error.message });
+  }
+}
+
+export { getSummary, getQuiz, getFlashcards, rewriteText };

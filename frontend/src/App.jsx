@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import AuthScreen from './components/AuthScreen';
-import { askQuestion } from './services/api';
+import { askQuestion, getConversations } from './services/api';
 
 function App() {
   const [healthData, setHealthData] = useState(null);
@@ -11,7 +11,10 @@ function App() {
 
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
-  const [currentUser, setCurrentUser] = useState(null); // Optional: can decode token here if needed
+  const [currentUser, setCurrentUser] = useState(() => {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
+  });
 
   // Core App states for Document & Chat interaction
   const [activeDocument, setActiveDocument] = useState(null);
@@ -45,18 +48,44 @@ function App() {
     setRetryCount((prev) => prev + 1);
   };
 
-  // Reset chat history when a new document is uploaded/selected
+  // Load chat history when a new document is uploaded/selected
   useEffect(() => {
+    let isMounted = true;
     if (activeDocument) {
-      setMessages([
-        {
-          sender: 'ai',
-          text: `Hello! I have finished analyzing "${activeDocument.filename}". Ask me anything about its contents!`,
-        },
-      ]);
+      setChatLoading(true);
+      getConversations(activeDocument.document_id)
+        .then((res) => {
+          if (isMounted) {
+            if (res.success && res.data.length > 0) {
+              setMessages(res.data.map(m => ({ sender: m.role, text: m.content })));
+            } else {
+              setMessages([
+                {
+                  sender: 'ai',
+                  text: `Hello! I have finished analyzing "${activeDocument.filename}". Ask me anything about its contents!`,
+                },
+              ]);
+            }
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load history:", err);
+          if (isMounted) {
+            setMessages([
+              {
+                sender: 'ai',
+                text: `Hello! I have finished analyzing "${activeDocument.filename}". Ask me anything about its contents!`,
+              },
+            ]);
+          }
+        })
+        .finally(() => {
+          if (isMounted) setChatLoading(false);
+        });
     } else {
       setMessages([]);
     }
+    return () => { isMounted = false; };
   }, [activeDocument]);
 
   const handleSendMessage = async (text) => {
@@ -112,6 +141,11 @@ function App() {
           </div>
 
           <div className="flex items-center space-x-4">
+            {isAuthenticated && currentUser?.name && (
+              <span className="text-sm font-medium text-slate-300 hidden sm:inline-block mr-4">
+                Welcome, <span className="text-indigo-400">{currentUser.name}</span>
+              </span>
+            )}
             <span className="text-xs text-slate-400 font-mono hidden sm:inline-block">
               API STATUS:
             </span>
@@ -138,6 +172,7 @@ function App() {
               <button
                 onClick={() => {
                   localStorage.removeItem('token');
+                  localStorage.removeItem('user');
                   setIsAuthenticated(false);
                   setCurrentUser(null);
                   setActiveDocument(null);
@@ -158,6 +193,7 @@ function App() {
           <AuthScreen onLoginSuccess={(user) => {
             setCurrentUser(user);
             setIsAuthenticated(true);
+            localStorage.setItem('user', JSON.stringify(user));
           }} />
         ) : healthError ? (
           <div className="flex-grow flex flex-col justify-center items-center py-20 px-6 max-w-xl mx-auto text-center">
@@ -183,6 +219,7 @@ function App() {
             activeDocument={activeDocument}
             setActiveDocument={setActiveDocument}
             messages={messages}
+            setMessages={setMessages}
             onSendMessage={handleSendMessage}
             chatLoading={chatLoading}
           />

@@ -4,11 +4,15 @@ import ChatPanel from './ChatPanel';
 import SummaryPanel from './SummaryPanel';
 import QuizPanel from './QuizPanel';
 import ComparePanel from './ComparePanel';
+import FlashcardPanel from './FlashcardPanel';
+import RewritePanel from './RewritePanel';
+import HistoryPanel from './HistoryPanel';
 
 export default function Dashboard({
   activeDocument,
   setActiveDocument,
   messages,
+  setMessages,
   onSendMessage,
   chatLoading,
 }) {
@@ -16,7 +20,17 @@ export default function Dashboard({
   const [uploadError, setUploadError] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('chat'); // 'chat', 'summary', 'quiz', 'compare'
+  const [activeTab, setActiveTab] = useState('chat');
+  const [showHistory, setShowHistory] = useState(false);
+  const [isLeftPanelVisible, setIsLeftPanelVisible] = useState(true);
+  // Increment to trigger HistoryPanel refresh
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0);
+
+  // When a user selects a doc from history, set it as active & switch to chat tab
+  const handleSelectFromHistory = (doc) => {
+    setActiveDocument(doc);
+    if (doc) setActiveTab('chat');
+  };
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -42,6 +56,8 @@ export default function Dashboard({
       const response = await uploadDocument(file);
       if (response.success && response.data) {
         setActiveDocument(response.data);
+        // Trigger HistoryPanel to reload
+        setHistoryRefreshKey((k) => k + 1);
       } else {
         throw new Error(response.message || 'Failed to upload document');
       }
@@ -83,10 +99,31 @@ export default function Dashboard({
   };
 
   return (
-    <div className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col md:flex-row gap-6 overflow-hidden h-[calc(100vh-130px)] min-h-[500px]">
+    <div className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col md:flex-row overflow-hidden h-[calc(100vh-130px)] min-h-[500px]">
+      
+      {!isLeftPanelVisible && (
+        <button
+          onClick={() => setIsLeftPanelVisible(true)}
+          className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-slate-900 border border-slate-700 p-2 rounded-r-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center"
+          title="Show Document Panel"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" /></svg>
+        </button>
+      )}
+
       {/* ─── LEFT PANEL: DOCUMENT MANAGEMENT ─── */}
-      <div className="w-full md:w-4/12 flex flex-col gap-6 h-full overflow-y-auto pr-0 md:pr-2">
-        {/* Upload Container */}
+      {isLeftPanelVisible && (
+        <div className="w-full md:w-4/12 flex flex-col gap-6 h-full overflow-y-auto pr-0 md:pr-2 md:mr-6 shrink-0 relative transition-all duration-300">
+          
+          <button
+            onClick={() => setIsLeftPanelVisible(false)}
+            className="absolute -right-2 md:right-0 top-6 z-10 bg-slate-800 border border-slate-700 p-1.5 rounded-l-xl text-slate-400 hover:text-white hover:bg-slate-700 transition-all shadow-lg hidden md:flex items-center justify-center"
+            title="Hide Document Panel"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg>
+          </button>
+
+          {/* Upload Container */}
         <div className="glass rounded-3xl p-6 shadow-xl flex flex-col">
           <h2 className="text-xl font-bold mb-4 flex items-center space-x-2">
             <span className="h-2 w-2 rounded-full bg-indigo-500"></span>
@@ -221,28 +258,46 @@ export default function Dashboard({
           </div>
         )}
       </div>
+      )}
 
-      {/* ─── RIGHT PANEL: INTELLIGENCE SUITE ─── */}
-      <div className="flex-grow w-full md:w-8/12 glass rounded-3xl shadow-xl flex flex-col h-full overflow-hidden">
+      {/* ─── CENTER/RIGHT PANEL: INTELLIGENCE SUITE ─── */}
+      <div className={`glass rounded-3xl shadow-xl flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out ${showHistory ? 'flex-[3]' : 'flex-grow'}`}>
         
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-900 bg-slate-950/20 px-2 pt-2">
-          {['chat', 'summary', 'quiz', 'compare'].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-6 py-3.5 text-sm font-bold tracking-wide capitalize transition-colors relative ${
-                activeTab === tab
-                  ? 'text-indigo-400'
-                  : 'text-slate-500 hover:text-slate-300'
-              }`}
-            >
-              {tab}
-              {activeTab === tab && (
-                <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-500 rounded-t-full shadow-[0_-2px_10px_rgba(99,102,241,0.5)]"></span>
-              )}
-            </button>
-          ))}
+        {/* Navigation Tabs + History Toggle */}
+        <div className="flex border-b border-slate-900 bg-slate-950/20 px-2 pt-2 items-center">
+          <div className="flex flex-grow overflow-x-auto no-scrollbar">
+            {['chat', 'summary', 'quiz', 'flashcard', 'rewrite', 'compare'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-3.5 text-sm font-bold tracking-wide capitalize transition-colors relative ${
+                  activeTab === tab
+                    ? 'text-indigo-400'
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {tab}
+                {activeTab === tab && (
+                  <span className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-500 rounded-t-full shadow-[0_-2px_10px_rgba(99,102,241,0.5)]"></span>
+                )}
+              </button>
+            ))}
+          </div>
+          {/* History sidebar toggle button */}
+          <button
+            onClick={() => setShowHistory((v) => !v)}
+            title={showHistory ? 'Hide History' : 'Show History'}
+            className={`mr-2 mb-1 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+              showHistory
+                ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/40'
+                : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            History
+          </button>
         </div>
 
         {/* Tab Content Rendering */}
@@ -250,6 +305,7 @@ export default function Dashboard({
           <ChatPanel 
             activeDocument={activeDocument} 
             messages={messages} 
+            setMessages={setMessages}
             onSendMessage={onSendMessage} 
             chatLoading={chatLoading} 
           />
@@ -263,11 +319,35 @@ export default function Dashboard({
           <QuizPanel activeDocument={activeDocument} />
         )}
 
+        {activeTab === 'flashcard' && (
+          <FlashcardPanel activeDocument={activeDocument} />
+        )}
+
+        {activeTab === 'rewrite' && (
+          <RewritePanel />
+        )}
+
         {activeTab === 'compare' && (
           <ComparePanel activeDocument={activeDocument} />
         )}
         
       </div>
+
+      {/* ─── RIGHT SIDEBAR: HISTORY PANEL ─── */}
+      <div
+        className={`h-full flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+          showHistory ? 'w-72 md:ml-6 opacity-100' : 'w-0 md:ml-0 opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="w-72 h-full flex flex-col">
+          <HistoryPanel
+            activeDocument={activeDocument}
+            onSelectDocument={handleSelectFromHistory}
+            refreshTrigger={historyRefreshKey}
+          />
+        </div>
+      </div>
+
     </div>
   );
 }
