@@ -25,16 +25,26 @@ const storage = multer.diskStorage({
   },
 });
 
-// File filter: only allow PDFs
+// File filter: allow PDF, DOCX, and common image formats
+const allowedExtensions = new Set(['.pdf', '.docx', '.png', '.jpg', '.jpeg', '.bmp', '.tiff']);
+const allowedMimeTypes = new Set([
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/png',
+  'image/jpeg',
+  'image/bmp',
+  'image/tiff',
+]);
+
 const fileFilter = (_req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
   const mime = file.mimetype;
 
-  if (ext === '.pdf' && mime === 'application/pdf') {
+  if (allowedExtensions.has(ext) && allowedMimeTypes.has(mime)) {
     cb(null, true);
   } else {
     cb(
-      new Error('Invalid file type. Only PDF files are accepted.'),
+      new Error('Invalid file type. Only PDF, DOCX, PNG, JPG, JPEG, BMP, and TIFF files are accepted.'),
       false
     );
   }

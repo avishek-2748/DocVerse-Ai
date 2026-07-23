@@ -8,6 +8,36 @@ import pool from '../config/db.js';
 // Swap to gemini-2.0-flash or gemini-2.5-flash when billing is enabled.
 const CHAT_MODEL = 'gemini-3.1-flash-lite';
 
+// ─── Rate-limit helpers ─────────────────────────────────────────────────────────
+
+/** Resolves after `ms` milliseconds. */
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Calls `fn()` and retries on 429 (rate-limit) responses with exponential back-off.
+ * Max retries: 4. Base delay: 15 s (the API typically asks for ~50 s, so we back-off up to that).
+ */
+async function callWithRetry(fn, maxRetries = 4) {
+  let delay = 15000; // 15 s initial
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const is429 = err?.status === 429 || err?.message?.includes('429');
+      if (is429 && attempt < maxRetries) {
+        // Parse the retry-after hint from the error if available
+        const retryMatch = err?.message?.match(/retry in ([\d.]+)s/i);
+        const waitMs = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) * 1000 + 500 : delay;
+        console.warn(`[intelligenceService] 429 Rate limit — waiting ${Math.round(waitMs / 1000)}s before retry (attempt ${attempt + 1}/${maxRetries})…`);
+        await sleep(waitMs);
+        delay = Math.min(delay * 2, 65000); // cap at 65 s
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 // ─── Prompt Templates ───────────────────────────────────────────────────────────
 
 // MAP step: summarise a single chunk
@@ -158,10 +188,12 @@ async function generateSummary(documentId) {
 
   for (let i = 0; i < chunks.length; i++) {
     const prompt = await MAP_SUMMARY_TEMPLATE.format({ chunkText: chunks[i] });
-    const response = await model.invoke([new HumanMessage(prompt)]);
+    const response = await callWithRetry(() => model.invoke([new HumanMessage(prompt)]));
     const summaryText = response.content?.trim() ?? '';
     chunkSummaries.push(summaryText);
     console.log(`[intelligenceService]   MAP chunk ${i + 1}/${chunks.length} done (${summaryText.length} chars).`);
+    // Small delay between calls to stay within free-tier rate limit (15 req/min)
+    if (i < chunks.length - 1) await sleep(4500);
   }
 
   // ── Step 4: REDUCE — Combine into final executive summary ──────────────
@@ -171,7 +203,7 @@ async function generateSummary(documentId) {
     .join('\n\n');
 
   const reducePrompt = await REDUCE_SUMMARY_TEMPLATE.format({ combinedSummaries });
-  const reduceResponse = await model.invoke([new HumanMessage(reducePrompt)]);
+  const reduceResponse = await callWithRetry(() => model.invoke([new HumanMessage(reducePrompt)]));
   const finalSummary = reduceResponse.content?.trim() ?? 'Summary generation failed.';
 
   console.log(`[intelligenceService] Summary generated (${finalSummary.length} chars).`);

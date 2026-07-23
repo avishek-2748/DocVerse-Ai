@@ -26,12 +26,12 @@ The easiest way to run DocVerse AI is using Docker Compose. This single command 
 
 1. Create a `.env` file in the `/backend` directory containing your Gemini API key and a JWT secret:
    ```env
-   OPENAI_API_KEY=your-api-key-here
+   GEMINI_API_KEY=your-gemini-api-key-here
    JWT_SECRET=your_super_secret_key
    ```
 2. Run the platform from the root directory:
    ```bash
-   docker-compose up --build -d
+   docker-compose up --build
    ```
 
 - **Frontend UI**: http://localhost

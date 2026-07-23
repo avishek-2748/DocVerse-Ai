@@ -1,0 +1,6 @@
+# Backend - Antigravity ignore
+node_modules/
+uploads/
+*.log
+.env
+.env.*

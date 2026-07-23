@@ -1,4 +1,5 @@
 import { generateSummary, generateQuiz, generateFlashcards, rewriteText as rewriteTextService } from '../services/intelligenceService.js';
+import pool from '../config/db.js';
 
 /**
  * GET /api/intelligence/summary/:documentId
@@ -27,7 +28,31 @@ async function getSummary(req, res) {
   try {
     console.log(`[intelligenceController] getSummary — documentId=${parsedId}`);
 
+    // Check if summary is already cached in DB
+    const cacheResult = await pool.query(
+      `SELECT summary FROM documents WHERE id = $1`,
+      [parsedId]
+    );
+
+    if (cacheResult.rows.length > 0 && cacheResult.rows[0].summary) {
+      console.log(`[intelligenceController] Returning cached summary for documentId=${parsedId}`);
+      return res.status(200).json({
+        success: true,
+        summary: cacheResult.rows[0].summary,
+        metadata: {
+          documentId: parsedId,
+          cached: true
+        },
+      });
+    }
+
     const { summary, chunkCount } = await generateSummary(parsedId);
+
+    // Save generated summary back to DB
+    await pool.query(
+      `UPDATE documents SET summary = $1 WHERE id = $2`,
+      [summary, parsedId]
+    );
 
     return res.status(200).json({
       success: true,
@@ -73,10 +98,10 @@ async function getQuiz(req, res) {
     });
   }
 
-  if (questionCount < 1 || questionCount > 20) {
+  if (questionCount < 1 || questionCount > 30) {
     return res.status(400).json({
       success: false,
-      message: 'Question count must be between 1 and 20.',
+      message: 'Question count must be between 1 and 30.',
     });
   }
 

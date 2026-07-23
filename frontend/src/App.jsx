@@ -121,7 +121,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between overflow-x-hidden selection:bg-indigo-600 selection:text-white relative">
+    <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden selection:bg-indigo-600 selection:text-white relative">
       {/* Background Decorative Gradients */}
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none -translate-y-1/2"></div>
       <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[140px] pointer-events-none translate-y-1/3"></div>
@@ -188,7 +188,7 @@ function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-grow w-full flex flex-col justify-start">
+      <main className="flex-1 w-full flex flex-col justify-start overflow-hidden">
         {!isAuthenticated ? (
           <AuthScreen onLoginSuccess={(user) => {
             setCurrentUser(user);
@@ -226,13 +226,38 @@ function App() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-900/60 bg-slate-950 py-4 px-6 text-center text-xs text-slate-500 mt-auto">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between space-y-2 sm:space-y-0">
-          <p>© 2026 DocVerse AI Platform. All rights reserved.</p>
-          <div className="flex space-x-6">
-            <a href="#" className="hover:text-indigo-400 transition-colors">Documentation</a>
-            <a href="#" className="hover:text-indigo-400 transition-colors">API References</a>
+      {/* Footer — always pinned to bottom */}
+      <footer className="shrink-0 border-t border-slate-800/60 bg-slate-950/95 backdrop-blur-sm py-3 px-6 text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Left: copyright */}
+          <p className="whitespace-nowrap">© 2026 DocVerse AI Platform. All rights reserved.</p>
+
+          {/* Center: Team */}
+          <div className="flex items-center gap-4">
+            <span className="text-slate-600 hidden sm:inline">Built by</span>
+            {/* Member 1 */}
+            <div className="flex items-center gap-1.5 group">
+              <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-[10px] shadow-md shadow-indigo-500/20 ring-1 ring-indigo-500/40">
+                A
+              </div>
+              <span className="text-slate-400 group-hover:text-indigo-400 transition-colors font-medium">Avishek</span>
+              <span className="text-slate-700 text-[10px] hidden sm:inline">&middot; Full-Stack Dev</span>
+            </div>
+            <span className="text-slate-700">&amp;</span>
+            {/* Member 2 */}
+            <div className="flex items-center gap-1.5 group">
+              <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-[10px] shadow-md shadow-emerald-500/20 ring-1 ring-emerald-500/40">
+                T
+              </div>
+              <span className="text-slate-400 group-hover:text-emerald-400 transition-colors font-medium">Teammate</span>
+              <span className="text-slate-700 text-[10px] hidden sm:inline">&middot; AI/ML Dev</span>
+            </div>
+          </div>
+
+          {/* Right: links */}
+          <div className="flex gap-5 whitespace-nowrap">
+            <a href="#" className="hover:text-indigo-400 transition-colors">Docs</a>
+            <a href="#" className="hover:text-indigo-400 transition-colors">API</a>
             <a href="#" className="hover:text-indigo-400 transition-colors">Security</a>
           </div>
         </div>

@@ -72,27 +72,35 @@ export default function ChatPanel({ activeDocument, messages, setMessages, onSen
       <div className="flex-grow overflow-y-auto p-6 space-y-4 bg-slate-950/10">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col justify-center items-center text-center px-4">
-            <div className="h-14 w-14 rounded-2xl bg-indigo-500/5 text-indigo-500/50 flex items-center justify-center mb-4 border border-indigo-500/10 animate-pulse">
-              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+            <div className="relative mb-6 group">
+              <div className="absolute inset-0 bg-indigo-500 rounded-full blur opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
+              <div className="relative h-16 w-16 rounded-3xl bg-gradient-to-br from-indigo-500/20 to-purple-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20 shadow-lg backdrop-blur-sm animate-float">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
             </div>
-            <h4 className="text-base font-bold text-slate-400">Ask your document questions</h4>
-            <p className="text-xs text-slate-500 max-w-sm mt-1 mb-6">
+            <h4 className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent mb-2">Ask your document questions</h4>
+            <p className="text-sm text-slate-500 max-w-sm mb-8 leading-relaxed">
               Upload a document to enable queries. Questions will be answered using semantic similarity search.
             </p>
 
             {activeDocument && (
-              <div className="w-full max-w-md space-y-2">
-                <p className="text-xs font-semibold text-slate-500 text-left uppercase tracking-wider pl-1">Suggested Questions</p>
+              <div className="w-full max-w-md space-y-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="h-px bg-slate-800 flex-grow"></div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest px-2">Suggested Questions</p>
+                  <div className="h-px bg-slate-800 flex-grow"></div>
+                </div>
                 {suggestedQuestions.map((q, idx) => (
                   <button
                     key={idx}
                     onClick={() => {
                       setInputValue(q);
                     }}
-                    className="w-full text-left p-3 rounded-xl bg-slate-900/60 border border-slate-900 text-xs text-slate-300 hover:text-white hover:border-slate-800 transition-all text-ellipsis overflow-hidden whitespace-nowrap block"
+                    className="w-full text-left p-3.5 rounded-2xl bg-slate-900/40 border border-slate-800/80 text-sm text-slate-300 hover:text-white hover:border-indigo-500/50 hover:bg-slate-900/80 hover:shadow-[0_0_15px_rgba(99,102,241,0.1)] transition-all text-ellipsis overflow-hidden whitespace-nowrap block group"
                   >
+                    <span className="text-indigo-500/50 mr-2 group-hover:text-indigo-400 transition-colors">✨</span>
                     {q}
                   </button>
                 ))}
@@ -107,10 +115,10 @@ export default function ChatPanel({ activeDocument, messages, setMessages, onSen
                 className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-md leading-relaxed ${
+                  className={`max-w-[85%] rounded-2xl px-5 py-3.5 text-sm shadow-md leading-relaxed ${
                     message.sender === 'user'
-                      ? 'bg-indigo-600 text-white rounded-br-none whitespace-pre-wrap'
-                      : 'bg-slate-900 text-slate-200 border border-slate-900 rounded-bl-none'
+                      ? 'bg-gradient-to-br from-indigo-600 to-indigo-500 text-white rounded-br-none whitespace-pre-wrap shadow-[0_4px_14px_rgba(99,102,241,0.2)]'
+                      : 'bg-slate-900 text-slate-200 border border-slate-800 rounded-bl-none shadow-sm'
                   }`}
                 >
                   {message.sender === 'user' ? (

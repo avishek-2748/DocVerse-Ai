@@ -2,13 +2,17 @@ import { useState, useEffect } from 'react';
 import { getSummary } from '../services/api';
 import MarkdownRenderer from './MarkdownRenderer';
 
-export default function SummaryPanel({ activeDocument }) {
+export default function SummaryPanel({ activeDocument, setActiveDocument }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    setSummary(null);
+    if (activeDocument && activeDocument.summary) {
+      setSummary(activeDocument.summary);
+    } else {
+      setSummary(null);
+    }
     setError(null);
   }, [activeDocument]);
 
@@ -20,6 +24,9 @@ export default function SummaryPanel({ activeDocument }) {
       const data = await getSummary(activeDocument.document_id);
       if (data.success) {
         setSummary(data.summary);
+        if (setActiveDocument) {
+          setActiveDocument(prev => ({ ...prev, summary: data.summary }));
+        }
       } else {
         throw new Error(data.message || 'Failed to generate summary');
       }
@@ -78,7 +85,10 @@ export default function SummaryPanel({ activeDocument }) {
       {loading ? (
         <div className="flex flex-col items-center justify-center flex-grow space-y-4">
           <div className="h-12 w-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
-          <p className="text-indigo-400 font-semibold text-sm animate-pulse">Reading and summarizing...</p>
+          <div className="text-center">
+            <p className="text-indigo-400 font-semibold text-sm animate-pulse mb-1">Reading and summarizing...</p>
+            <p className="text-slate-500 text-xs">Estimated time: 1 - 2 minutes depending on document length</p>
+          </div>
         </div>
       ) : error ? (
         <div className="p-4 bg-red-950/30 border border-red-900/50 rounded-xl text-sm text-red-400">

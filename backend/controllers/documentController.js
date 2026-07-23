@@ -1,36 +1,66 @@
 import pool from '../config/db.js';
 import {
-  extractTextFromPDF,
+  extractTextFromFile,
   processAndStoreEmbeddings,
   cleanupFile,
 } from '../services/documentService.js';
 
-/**
- * POST /api/documents/upload
- *
- * Handles an incoming PDF upload. Full pipeline:
- *   1. Validate that multer attached a file to the request.
- *   2. Insert a parent row into `documents` with status = 'processing'.
- *   3. Extract raw text from the PDF (pdf-parse).
- *   4. Chunk the text, generate Gemini embeddings, and store every chunk
- *      in `document_chunks` via processAndStoreEmbeddings().
- *   5. Mark the parent document as status = 'completed'.
- *   6. Return document_id, filename, page_count, chunk_count, and scanned flag.
- *
- *   On any error:
- *   - Log the error.
- *   - Mark the parent document row as status = 'failed'.
- *   - Return a structured 500 response.
- *
- *   Always:
- *   - Clean up the temp file from disk (in `finally`).
- */
+async function processDocumentInBackground(documentId, filePath, enableOCR, originalname) {
+  try {
+    const onProgress = async (percent, stage) => {
+      try {
+        await pool.query(
+          `UPDATE documents SET progress_percent = $1, progress_stage = $2 WHERE id = $3`,
+          [percent, stage, documentId]
+        );
+      } catch (err) {
+        console.error('Failed to update progress in DB:', err);
+      }
+    };
+
+    await onProgress(10, 'extracting');
+    
+    console.log(`[documentController] Extracting text from "${originalname}" (OCR=${enableOCR})…`);
+    const { text: rawText, pageCount, isScanned } = await extractTextFromFile(filePath, enableOCR, onProgress);
+    
+    // Warn if text extraction produced very minimal content, but allow upload
+    if (!rawText || rawText.length < 20) {
+      console.warn(`[documentController] Document ${documentId} has minimal text (${rawText.length} chars). Limited Q&A results expected.`);
+    }
+
+    await onProgress(50, 'embedding');
+    
+    console.log(`[documentController] Starting embedding pipeline for document ${documentId}…`);
+    const chunkCount = await processAndStoreEmbeddings(documentId, rawText, onProgress);
+
+    await pool.query(
+      `UPDATE documents 
+       SET status = $1, progress_percent = 100, progress_stage = 'completed', page_count = $2, is_scanned = $3, chunk_count = $4
+       WHERE id = $5`,
+      ['completed', pageCount, isScanned, chunkCount, documentId]
+    );
+    console.log(`[documentController] Document ${documentId} marked as 'completed' (${chunkCount} chunks stored).`);
+
+  } catch (error) {
+    console.error(`[documentController] processDocumentInBackground error for doc ${documentId}:`, error);
+    try {
+      await pool.query(
+        `UPDATE documents SET status = 'failed', progress_stage = 'failed' WHERE id = $1`,
+        [documentId]
+      );
+    } catch (dbError) {
+      console.error('[documentController] Failed to update document status to failed:', dbError.message);
+    }
+  } finally {
+    cleanupFile(filePath);
+  }
+}
+
 async function uploadDocument(req, res) {
-  // Multer error forwarding (e.g., wrong file type, size exceeded)
   if (!req.file) {
     return res.status(400).json({
       success: false,
-      message: 'No file uploaded. Please attach a PDF file with the key "file".',
+      message: 'No file uploaded. Please attach a supported file with the key "file".',
     });
   }
 
@@ -40,7 +70,7 @@ async function uploadDocument(req, res) {
   try {
     const userId = req.user.id;
 
-    // ── Step 0: Quota check ─────────────────────────────────────────────────
+    // Quota check
     const quotaResult = await pool.query(
       `SELECT 
          COALESCE(SUM(d.file_size_bytes), 0)::BIGINT AS used_bytes,
@@ -56,8 +86,7 @@ async function uploadDocument(req, res) {
     const quotaBytes = parseInt(quotaRow.quota_bytes, 10);
 
     if (usedBytes + size > quotaBytes) {
-      const { cleanupFile: cleanup } = await import('../services/documentService.js');
-      await cleanup(filePath).catch(() => {});
+      cleanupFile(filePath);
       const mbFree = ((quotaBytes - usedBytes) / (1024 * 1024)).toFixed(1);
       return res.status(413).json({
         success: false,
@@ -65,90 +94,76 @@ async function uploadDocument(req, res) {
       });
     }
 
-    // ── Step 1: Insert document record with 'processing' status ──────────────
     const insertResult = await pool.query(
-      `INSERT INTO documents (filename, status, user_id, file_size_bytes, created_at)
-       VALUES ($1, $2, $3, $4, NOW())
+      `INSERT INTO documents (filename, status, progress_percent, progress_stage, user_id, file_size_bytes, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
        RETURNING id`,
-      [originalname, 'processing', userId, size]
+      [originalname, 'processing', 0, 'queued', userId, size]
     );
     documentId = insertResult.rows[0].id;
     console.log(`[documentController] Created document record id=${documentId} for "${originalname}".`);
 
+    const enableOCR = req.body.enableOCR === 'true';
+    
+    // START BACKGROUND PROCESSING (DO NOT AWAIT)
+    processDocumentInBackground(documentId, filePath, enableOCR, originalname).catch(err => {
+      console.error(`Background processing failed for ${documentId}:`, err);
+    });
 
-    // ── Step 2: Extract raw text from the uploaded PDF ───────────────────────
-    console.log(`[documentController] Extracting text from "${originalname}"…`);
-    const { text: rawText, pageCount, isScanned } = await extractTextFromPDF(filePath);
-    console.log(
-      `[documentController] Extraction complete — pages: ${pageCount}, scanned: ${isScanned}, text length: ${rawText.length}.`
-    );
-
-    // ── Step 3: Chunk, embed, and store the text in document_chunks ──────────
-    console.log(`[documentController] Starting embedding pipeline for document ${documentId}…`);
-    const chunkCount = await processAndStoreEmbeddings(documentId, rawText);
-
-    // ── Step 4: Mark the document as fully completed and persist all metadata ─
-    await pool.query(
-      `UPDATE documents 
-       SET status = $1, page_count = $2, is_scanned = $3, chunk_count = $4
-       WHERE id = $5`,
-      ['completed', pageCount, isScanned, chunkCount, documentId]
-    );
-    console.log(`[documentController] Document ${documentId} marked as 'completed' (${chunkCount} chunks stored).`);
-
-    // ── Step 5: Return success response ──────────────────────────────────────
     return res.status(201).json({
       success: true,
-      message: isScanned
-        ? `PDF uploaded. Scanned document detected — ${chunkCount} chunk(s) vectorised (OCR text may be sparse).`
-        : `PDF uploaded, embedded, and stored successfully. ${chunkCount} chunk(s) vectorised.`,
+      message: 'Document accepted for processing.',
       data: {
         document_id: documentId,
         filename: originalname,
         file_size_bytes: size,
-        page_count: pageCount,
-        is_scanned: isScanned,
-        status: 'completed',
-        chunk_count: chunkCount,
+        status: 'processing',
+        progress_percent: 0,
+        progress_stage: 'queued',
       },
     });
 
   } catch (error) {
     console.error('[documentController] uploadDocument error:', error);
-
-    // Attempt to mark the document as failed if it was already inserted
-    if (documentId !== null) {
-      try {
-        await pool.query(
-          `UPDATE documents SET status = $1 WHERE id = $2`,
-          ['failed', documentId]
-        );
-        console.warn(`[documentController] Document ${documentId} marked as 'failed'.`);
-      } catch (dbError) {
-        console.error(
-          '[documentController] Failed to update document status to failed:',
-          dbError.message
-        );
-      }
-    }
-
+    cleanupFile(filePath);
     return res.status(500).json({
       success: false,
       message: 'An error occurred during document processing.',
       error: error.message,
     });
-
-  } finally {
-    // Always delete the temp file from the uploads directory
-    cleanupFile(filePath);
   }
 }
 
-/**
- * GET /api/documents
- *
- * Fetches all documents belonging to the authenticated user.
- */
+async function getDocumentStatus(req, res) {
+  try {
+    const { documentId } = req.params;
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `SELECT status, progress_percent, progress_stage, page_count, is_scanned, chunk_count 
+       FROM documents 
+       WHERE id = $1 AND user_id = $2`,
+      [documentId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result.rows[0],
+    });
+  } catch (error) {
+    console.error('[documentController] getDocumentStatus error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve document status.',
+      error: error.message,
+    });
+  }
+}
+
 async function getDocuments(req, res) {
   try {
     const userId = req.user.id;
@@ -161,6 +176,9 @@ async function getDocuments(req, res) {
          is_scanned,
          chunk_count,
          status,
+         progress_percent,
+         progress_stage,
+         summary,
          COALESCE(created_at, upload_date) AS created_at
        FROM documents 
        WHERE user_id = $1 
@@ -182,11 +200,6 @@ async function getDocuments(req, res) {
   }
 }
 
-/**
- * DELETE /api/documents/:documentId
- *
- * Deletes a single document by ID.
- */
 async function deleteDocument(req, res) {
   try {
     const { documentId } = req.params;
@@ -218,14 +231,6 @@ async function deleteDocument(req, res) {
   }
 }
 
-/**
- * DELETE /api/documents
- *
- * Handles bulk deletion of documents based on a strategy:
- *   - 'all': Deletes all documents belonging to user.
- *   - 'oldest': Deletes the oldest N documents.
- *   - 'newest': Deletes the newest N documents.
- */
 async function bulkDeleteDocuments(req, res) {
   try {
     const userId = req.user.id;
@@ -281,4 +286,4 @@ async function bulkDeleteDocuments(req, res) {
   }
 }
 
-export { uploadDocument, getDocuments, deleteDocument, bulkDeleteDocuments };
+export { uploadDocument, getDocumentStatus, getDocuments, deleteDocument, bulkDeleteDocuments };

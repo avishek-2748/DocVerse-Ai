@@ -7,6 +7,7 @@ export default function QuizPanel({ activeDocument }) {
   const [error, setError] = useState(null);
   const [userAnswers, setUserAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
+  const [questionCount, setQuestionCount] = useState(5);
 
   useEffect(() => {
     setQuiz(null);
@@ -22,7 +23,7 @@ export default function QuizPanel({ activeDocument }) {
     setShowResults(false);
     setUserAnswers({});
     try {
-      const data = await getQuiz(activeDocument.document_id, 5);
+      const data = await getQuiz(activeDocument.document_id, questionCount);
       if (data.success) {
         setQuiz(data.quiz);
       } else {
@@ -67,12 +68,27 @@ export default function QuizPanel({ activeDocument }) {
           <p className="text-xs text-slate-500">Test your knowledge on this document</p>
         </div>
         {!loading && (
-          <button
-            onClick={fetchQuiz}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-all"
-          >
-            {quiz ? 'Regenerate Quiz' : 'Generate Quiz'}
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-1.5 rounded-xl">
+              <label htmlFor="qCount" className="text-xs text-slate-400 font-semibold">Questions:</label>
+              <select
+                id="qCount"
+                value={questionCount}
+                onChange={(e) => setQuestionCount(Number(e.target.value))}
+                className="bg-transparent text-sm text-slate-200 outline-none font-bold"
+              >
+                {[5, 10, 15, 20, 25, 30].map(n => (
+                  <option key={n} value={n} className="bg-slate-800">{n}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={fetchQuiz}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-4 rounded-xl text-sm transition-all shadow-[0_0_10px_rgba(99,102,241,0.3)]"
+            >
+              {quiz ? 'Regenerate Quiz' : 'Generate Quiz'}
+            </button>
+          </div>
         )}
       </div>
 

@@ -26,9 +26,8 @@ services:
     ports:
       - "5000:5000"
     environment:
-      # Override the DATABASE_URL to point to the 'db' service instead of 'localhost'
-      - DATABASE_URL=postgresql://postgres:postgrespassword@db:5432/docverse
-      # Ensure you pass your .env file in the backend directory or copy variables here
+      - DB_HOST=db
+      - DB_PASSWORD=postgrespassword
     env_file:
       - ./backend/.env
     depends_on:

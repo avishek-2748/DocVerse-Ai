@@ -1,0 +1,58 @@
+# Antigravity ignore file - prevents IDE freeze on large directories
+
+# Dependencies (CRITICAL - prevents freeze)
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+**/dist/
+build/
+**/build/
+.next/
+
+# Version control
+.git/
+
+# Logs
+*.log
+**/logs/
+npm-debug.log*
+yarn-debug.log*
+
+# Environment files
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Uploads & media files
+uploads/
+**/uploads/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.zip
+*.tar.gz
+*.rar
+
+# Python cache
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Lock files (large, not useful for AI)
+package-lock.json
+**/package-lock.json
+yarn.lock
+**/yarn.lock
+
+# Docker
+.docker/
+
+# Misc
+.DS_Store
+Thumbs.db

@@ -42,26 +42,71 @@ export async function login(email, password) {
 }
 
 /**
- * Uploads a PDF document to the backend API.
+ * Uploads a document file to the backend API.
  *
- * @param {File} file - The PDF file object.
+ * @param {File} file - The document or image file object.
+ * @param {boolean} enableOCR - Whether OCR should be enabled for scanned/image uploads.
  * @returns {Promise<Object>} The response data from the server.
  */
-export async function uploadDocument(file) {
-  const formData = new FormData();
-  formData.append('file', file);
+export function uploadDocument(file, enableOCR = false, onUploadProgress = null) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('enableOCR', enableOCR ? 'true' : 'false');
 
-  const response = await fetch(`${API_BASE_URL}/documents/upload`, {
-    method: 'POST',
-    headers: { ...getAuthHeaders() },
-    body: formData,
+    xhr.open('POST', `${API_BASE_URL}/documents/upload`);
+    
+    // Add auth headers
+    const authHeaders = getAuthHeaders();
+    for (const [key, value] of Object.entries(authHeaders)) {
+      xhr.setRequestHeader(key, value);
+    }
+
+    if (xhr.upload && onUploadProgress) {
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          onUploadProgress(percent);
+        }
+      });
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          resolve(res);
+        } catch (e) {
+          reject(new Error('Invalid response from server'));
+        }
+      } else {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          reject(new Error(res.error || res.message || `Upload failed with status ${xhr.status}`));
+        } catch (e) {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.send(formData);
   });
+}
 
+/**
+ * Get processing status for a document.
+ */
+export async function getDocumentStatus(documentId) {
+  const response = await fetch(`${API_BASE_URL}/documents/${documentId}/status`, {
+    method: 'GET',
+    headers: { ...getAuthHeaders() },
+  });
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || errorData.message || `Upload failed with status ${response.status}`);
+    throw new Error(errorData.error || errorData.message || `Failed to fetch document status`);
   }
-
   return response.json();
 }
 
