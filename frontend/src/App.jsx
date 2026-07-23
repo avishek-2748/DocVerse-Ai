@@ -247,10 +247,10 @@ function App() {
             {/* Member 2 */}
             <div className="flex items-center gap-1.5 group">
               <div className="h-6 w-6 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-[10px] shadow-md shadow-emerald-500/20 ring-1 ring-emerald-500/40">
-                T
+                R
               </div>
-              <span className="text-slate-400 group-hover:text-emerald-400 transition-colors font-medium">Teammate</span>
-              <span className="text-slate-700 text-[10px] hidden sm:inline">&middot; AI/ML Dev</span>
+              <span className="text-slate-400 group-hover:text-emerald-400 transition-colors font-medium">Rimjhim</span>
+              <span className="text-slate-700 text-[10px] hidden sm:inline">&middot; UI/UX Designer</span>
             </div>
           </div>
 
