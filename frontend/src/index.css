@@ -5,6 +5,18 @@
 @tailwind utilities;
 
 @layer base {
+  html, body {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #root {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
   body {
     @apply bg-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white;
     font-family: 'Inter', sans-serif;
@@ -12,6 +24,12 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Outfit', sans-serif;
+  }
+  
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400;
+    background-size: 200% auto;
+    animation: shine 4s linear infinite;
   }
 }
 
@@ -69,3 +87,27 @@
   transform: rotateY(180deg);
 }
 
+/* Home Page Animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.opacity-0-init {
+  opacity: 0;
+}
+
+@keyframes letterPop {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.animate-letter {
+  display: inline-block;
+  opacity: 0;
+  animation: letterPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

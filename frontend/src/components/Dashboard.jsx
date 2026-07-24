@@ -183,7 +183,7 @@ export default function Dashboard({
   const isProcessing = activeDocument?.status === 'processing';
 
   return (
-    <div className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col md:flex-row overflow-hidden h-full min-h-0">
+    <div className="h-full w-full max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col md:flex-row gap-4 overflow-hidden">
       
       {!isLeftPanelVisible && (
         <button
@@ -197,7 +197,7 @@ export default function Dashboard({
 
       {/* ─── LEFT PANEL: DOCUMENT MANAGEMENT ─── */}
       {isLeftPanelVisible && (
-        <div className="w-full md:w-4/12 flex flex-col gap-6 h-full overflow-y-auto pr-0 md:pr-2 md:mr-6 shrink-0 relative transition-all duration-300">
+        <div className="w-full md:w-4/12 flex flex-col gap-6 min-h-0 overflow-y-auto pr-0 md:pr-2 shrink-0 relative transition-all duration-300">
           
           <button
             onClick={() => setIsLeftPanelVisible(false)}
@@ -367,7 +367,7 @@ export default function Dashboard({
       )}
 
       {/* ─── CENTER/RIGHT PANEL: INTELLIGENCE SUITE ─── */}
-      <div className={`glass rounded-3xl shadow-xl flex flex-col h-full overflow-hidden transition-all duration-300 ease-in-out ${showHistory ? 'flex-[3]' : 'flex-grow'}`}>
+      <div className={`glass rounded-3xl shadow-xl flex flex-col flex-1 min-h-0 overflow-hidden transition-all duration-300 ease-in-out ${showHistory ? 'flex-[3]' : ''}`}>
         
         {/* Navigation Tabs + History Toggle */}
         <div className="flex border-b border-slate-900 bg-slate-950/20 px-2 pt-2 items-center">
@@ -411,7 +411,7 @@ export default function Dashboard({
 
         {/* Processing State Override for Tabs */}
         {isProcessing ? (
-          <div className="flex-grow flex flex-col items-center justify-center bg-slate-950/30 p-8">
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center bg-slate-950/30 p-8">
              <div className="max-w-md w-full glass rounded-3xl p-8 border border-indigo-500/20 shadow-[0_0_40px_rgba(99,102,241,0.1)] text-center">
                 <div className="relative w-24 h-24 mx-auto mb-6">
                   <div className="absolute inset-0 rounded-full border-4 border-slate-800"></div>
@@ -442,8 +442,8 @@ export default function Dashboard({
              </div>
           </div>
         ) : (
-          /* Normal Tab Content Rendering */
-          <>
+          /* Normal Tab Content — wrapped in flex-1 so it fills space BELOW the tab bar */
+          <div className="flex-1 min-h-0 overflow-hidden">
             <div className={activeTab === 'chat' ? 'h-full flex flex-col overflow-hidden' : 'hidden'}>
               <ChatPanel 
                 activeDocument={activeDocument} 
@@ -473,18 +473,18 @@ export default function Dashboard({
             <div className={activeTab === 'compare' ? 'h-full flex flex-col overflow-hidden' : 'hidden'}>
               <ComparePanel activeDocument={activeDocument} />
             </div>
-          </>
+          </div>
         )}
         
       </div>
 
       {/* ─── RIGHT SIDEBAR: HISTORY PANEL ─── */}
       <div
-        className={`h-full flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
-          showHistory ? 'w-72 md:ml-6 opacity-100' : 'w-0 md:ml-0 opacity-0 pointer-events-none'
+        className={`min-h-0 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+          showHistory ? 'w-72 opacity-100' : 'w-0 opacity-0 pointer-events-none'
         }`}
       >
-        <div className="w-72 h-full flex flex-col">
+        <div className="w-72 min-h-0 flex-1 flex flex-col">
           <HistoryPanel
             activeDocument={activeDocument}
             onSelectDocument={handleSelectFromHistory}

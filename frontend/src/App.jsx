@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
 import AuthScreen from './components/AuthScreen';
+import HomePage from './components/HomePage';
 import { askQuestion, getConversations } from './services/api';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
   const [activeDocument, setActiveDocument] = useState(null);
   const [messages, setMessages] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   const checkBackendHealth = async () => {
     setHealthLoading(true);
@@ -121,13 +123,13 @@ function App() {
   };
 
   return (
-    <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden selection:bg-indigo-600 selection:text-white relative">
+    <div className="flex-1 w-full bg-slate-950 text-slate-100 flex flex-col overflow-hidden selection:bg-indigo-600 selection:text-white relative">
       {/* Background Decorative Gradients */}
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none -translate-y-1/2"></div>
       <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[140px] pointer-events-none translate-y-1/3"></div>
 
       {/* Navigation Header */}
-      <header className="glass sticky top-0 z-50 border-b border-slate-900 px-6 py-4">
+      <header className="glass shrink-0 z-50 border-b border-slate-900 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -177,6 +179,7 @@ function App() {
                   setCurrentUser(null);
                   setActiveDocument(null);
                   setMessages([]);
+                  setShowDashboard(false);
                 }}
                 className="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-900/60 text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all ml-2"
               >
@@ -188,7 +191,7 @@ function App() {
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full flex flex-col justify-start overflow-hidden">
+      <main className="flex-1 min-h-0 w-full flex flex-col overflow-hidden">
         {!isAuthenticated ? (
           <AuthScreen onLoginSuccess={(user) => {
             setCurrentUser(user);
@@ -214,6 +217,8 @@ function App() {
               Retry Connection
             </button>
           </div>
+        ) : !showDashboard ? (
+          <HomePage onEnterDashboard={() => setShowDashboard(true)} />
         ) : (
           <Dashboard
             activeDocument={activeDocument}

@@ -3,11 +3,16 @@ import { clearConversations } from '../services/api';
 import MarkdownRenderer from './MarkdownRenderer';
 
 export default function ChatPanel({ activeDocument, messages, setMessages, onSendMessage, chatLoading }) {
-  const chatEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
   const [inputValue, setInputValue] = useState('');
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   }, [messages, chatLoading]);
 
   const handleSend = (e) => {
@@ -69,7 +74,7 @@ export default function ChatPanel({ activeDocument, messages, setMessages, onSen
       )}
 
       {/* Messages Body */}
-      <div className="flex-grow overflow-y-auto p-6 space-y-4 bg-slate-950/10">
+      <div ref={chatContainerRef} className="flex-grow overflow-y-auto p-6 space-y-4 bg-slate-950/10">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col justify-center items-center text-center px-4">
             <div className="relative mb-6 group">
@@ -142,7 +147,6 @@ export default function ChatPanel({ activeDocument, messages, setMessages, onSen
                 </div>
               </div>
             )}
-            <div ref={chatEndRef} />
           </div>
         )}
       </div>
