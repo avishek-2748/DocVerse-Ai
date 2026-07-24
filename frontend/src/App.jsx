@@ -27,7 +27,7 @@ function App() {
     setHealthLoading(true);
     setHealthError(null);
     try {
-      const response = await fetch('http://localhost:5000/api/health');
+      const response = await fetch('http://13.206.225.113:5000/api/health');
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -207,7 +207,7 @@ function App() {
             </div>
             <h2 className="text-2xl font-bold mb-3">API Server Offline</h2>
             <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-              DocVerse AI could not establish a connection to the backend server at <code>http://localhost:5000</code>. Please make sure the backend server is running and database container is active.
+              DocVerse AI could not establish a connection to the backend server at <code>http://13.206.225.113:5000</code>. Please make sure the backend server is running and database container is active.
             </p>
             <button
               onClick={handleRetry}
