@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://13.206.225.113:5000/api';
+const API_BASE_URL = `${import.meta.env.VITE_API_URL || 'https://normally-distinguished-showing-historical.trycloudflare.com'}/api`;
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
